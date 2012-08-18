@@ -57,9 +57,8 @@ END; -%]
       END;
     END -%]
 
-[%- MACRO display_artwork(artwork, fallback, message) BLOCK -%]
-    <a href="[% artwork.image %]" class="thickbox">
-    [%- IF no_javascript -%]
+[%- MACRO display_artwork_image(artwork, fallback, message) BLOCK -%]
+  [%- IF no_javascript -%]
         <img src="[% artwork.large_thumbnail %]" />
     [%- ELSE -%]
         <img />
@@ -84,6 +83,11 @@ END; -%]
           }).attr ("src", "[% artwork.large_thumbnail %]");
         </script>
     [%- END -%]
+[% END %]
+
+[%- MACRO display_artwork(artwork, fallback, message) BLOCK -%]
+    <a href="[% artwork.image %]" class="thickbox">
+      [% display_artwork_image(artwork, fallback, message) %]
     </a>
 [%- END -%]
 
