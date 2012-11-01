@@ -8,7 +8,7 @@ use Carp 'confess';
 use Class::MOP;
 use Data::Compare;
 use Data::UUID::MT;
-use Digest::SHA1 qw( sha1_base64 );
+use Digest::SHA qw( sha1_base64 );
 use Encode qw( decode encode );
 use List::MoreUtils qw( natatime zip );
 use MusicBrainz::Server::Constants qw( $DARTIST_ID $VARTIST_ID $DLABEL_ID );
