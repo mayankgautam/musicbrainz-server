@@ -5,9 +5,9 @@ use Moose;
 use namespace::autoclean;
 
 use MusicBrainz::Server::Entity::Artist;
-use MusicBrainz::Server::Data::NES::Utils qw( request );
 
 extends 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::Role::NES';
 
 sub _entity_class
 {
@@ -37,14 +37,14 @@ sub create
 {
     my ($self, $editor_id, @artists) = @_;
 
-    my $response = request ('/edit/open', {});
+    my $response = $self->request ('/edit/open', {});
     my $edit_id = $response->{ref};
 
     my @created;
     for my $artist (@artists)
     {
 
-        my $response = request ('/artist/create', {
+        my $response = $self->request ('/artist/create', {
             editor => 1, edit => $edit_id, artist => $artist });
 
         push @created, $response->{ref};
@@ -57,7 +57,7 @@ sub get_by_revision
 {
     my ($self, $revision_id) = @_;
 
-    my $response = request ('/artist/view-revision', { revision => $revision_id });
+    my $response = $self->request ('/artist/view-revision', { revision => $revision_id });
 
     return $self->new_from_response ($response);
 }

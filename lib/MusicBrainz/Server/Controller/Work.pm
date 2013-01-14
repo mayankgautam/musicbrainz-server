@@ -4,7 +4,6 @@ use Moose;
 BEGIN { extends 'MusicBrainz::Server::Controller'; }
 
 use MusicBrainz::Server::Constants qw(
-    $EDIT_WORK_CREATE
     $EDIT_WORK_EDIT
     $EDIT_WORK_MERGE
     $EDIT_WORK_ADD_ISWCS
@@ -123,22 +122,48 @@ after 'merge' => sub
     $c->model('ISWC')->load_for_works(@{ $c->stash->{to_merge} });
 };
 
-with 'MusicBrainz::Server::Controller::Role::Create' => {
-    form      => 'Work',
-    edit_type => $EDIT_WORK_CREATE,
-    edit_arguments => sub {
-        my ($self, $c) = @_;
+# with 'MusicBrainz::Server::Controller::Role::Create' => {
+#             post_creation => sub {
+#                 my ($edit, $form) = @_;
+#                 my $work = $c->model('Work')->get_by_id($edit->entity_id);
+#                 my @iswcs = @{ $form->field('iswcs')->value };
+#                 $self->_add_iswcs($c, $form, $work, @iswcs) if scalar @iswcs;
+#             }
+# };
 
-        return (
-            post_creation => sub {
-                my ($edit, $form) = @_;
-                my $work = $c->model('Work')->get_by_id($edit->entity_id);
-                my @iswcs = @{ $form->field('iswcs')->value };
-                $self->_add_iswcs($c, $form, $work, @iswcs) if scalar @iswcs;
+
+sub create : Local Edit {
+    my ($self, $c) = @_;
+
+    my $form = $c->form( form => 'Work', ctx => $c );
+    if ($c->form_posted && $form->submitted_and_valid($c->req->body_params)) {
+        my $edit = $c->model('NES::Edit')->open;
+
+        my $values = $form->values;
+        my $work_revision = $c->model('NES::Work')->create(
+            $edit, $c->user,
+            {
+                type => $values->{type_id},
+                language => $values->{language_id},
+                name => $values->{name},
+                comment => $values->{comment}
             }
         );
+
+        # my $privs = $c->user->privileges;
+        # if ($c->user->is_auto_editor &&
+        #     $form->field('as_auto_editor') &&
+        #     !$form->field('as_auto_editor')->value) {
+        # }
+
+        $c->response->redirect(
+            $c->uri_for_action($self->action_for('show'), [ $work_revision->gid ]));
     }
-};
+    elsif (!$c->form_posted && %{ $c->req->query_params }) {
+        $form->process( params => $c->req->query_params );
+        $form->clear_errors;
+    }
+}
 
 sub _add_iswcs {
     my ($self, $c, $form, $work, @iswcs) = @_;

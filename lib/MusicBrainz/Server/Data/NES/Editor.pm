@@ -3,7 +3,6 @@ use Moose;
 use namespace::autoclean;
 
 use MusicBrainz::Server::Entity::Editor;
-use MusicBrainz::Server::Data::NES::Utils qw( request );
 
 extends 'MusicBrainz::Server::Data::NES::CoreEntity';
 
@@ -21,7 +20,7 @@ sub register
 {
     my ($self, $editor) = @_;
 
-    my $response = request ('/editor/register', $editor);
+    my $response = $self->request ('/editor/register', $editor);
 
     return $self->new_from_response ($response);
 }

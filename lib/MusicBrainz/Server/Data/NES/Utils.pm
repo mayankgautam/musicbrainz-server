@@ -18,19 +18,6 @@ sub model
     return $model_class->new ();
 }
 
-sub request
-{
-    my ($path, $body) = @_;
-
-    my $ua = LWP::UserAgent->new;
-
-    my $uri = DBDefs->DATA_ACCESS_SERVICE.$path;
-    my $content = to_json ($body, { pretty => 1, canonical => 1 });
-
-    my $response = $ua->post ($uri, Content => encode ('utf8', $content));
-
-    return decode_json ($response->content);
-}
 
 1;
 
