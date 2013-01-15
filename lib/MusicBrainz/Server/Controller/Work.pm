@@ -12,33 +12,38 @@ use MusicBrainz::Server::Constants qw(
 use MusicBrainz::Server::Translation qw( l );
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
-    model       => 'Work',
+    model       => 'NES::Work',
     entity_name => 'work',
 };
-with 'MusicBrainz::Server::Controller::Role::Annotation';
+# with 'MusicBrainz::Server::Controller::Role::Annotation';
 with 'MusicBrainz::Server::Controller::Role::Alias';
 with 'MusicBrainz::Server::Controller::Role::Details';
-with 'MusicBrainz::Server::Controller::Role::Relationship';
-with 'MusicBrainz::Server::Controller::Role::Rating';
-with 'MusicBrainz::Server::Controller::Role::Tag';
+# with 'MusicBrainz::Server::Controller::Role::Relationship';
+# with 'MusicBrainz::Server::Controller::Role::Rating';
 with 'MusicBrainz::Server::Controller::Role::EditListing';
-with 'MusicBrainz::Server::Controller::Role::Cleanup';
-with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
+# with 'MusicBrainz::Server::Controller::Role::Cleanup';
+# with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 
 use aliased 'MusicBrainz::Server::Entity::ArtistCredit';
 
 sub base : Chained('/') PathPart('work') CaptureArgs(0) { }
+
+################################################################################
+# with 'MusicBrainz::Server::Controller::Role::Tag';
+sub tag_async : Chained('load') { }
+sub tags : Chained('load') { }
+################################################################################
 
 after 'load' => sub
 {
     my ($self, $c) = @_;
 
     my $work = $c->stash->{work};
-    $c->model('Work')->load_meta($work);
-    $c->model('ISWC')->load_for_works($work);
-    if ($c->user_exists) {
-        $c->model('Work')->rating->load_user_ratings($c->user->id, $work);
-    }
+    # $c->model('Work')->load_meta($work);
+    # $c->model('ISWC')->load_for_works($work);
+    # if ($c->user_exists) {
+    #     $c->model('Work')->rating->load_user_ratings($c->user->id, $work);
+    # }
 };
 
 sub show : PathPart('') Chained('load')
@@ -49,13 +54,15 @@ sub show : PathPart('') Chained('load')
     $c->model('WorkType')->load($work);
     $c->model('Language')->load($work);
 
-    # need to call relationships for overview page
-    $self->relationships($c);
+    # Need to call relationships for overview page
+    # $self->relationships($c); NES
 
     $c->stash->{template} = 'work/index.tt';
 }
 
-for my $action (qw( relationships aliases tags details )) {
+# NES - originally:
+# for my $action (qw( relationships aliases tags details )) {
+for my $action (qw( aliases details )) {
     after $action => sub {
         my ($self, $c) = @_;
         my $work = $c->stash->{work};
