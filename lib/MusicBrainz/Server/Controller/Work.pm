@@ -9,7 +9,14 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_WORK_ADD_ISWCS
     $EDIT_WORK_REMOVE_ISWC
 );
+use MusicBrainz::Server::Entity::Work;
+use MusicBrainz::Server::Entity::Tree::Work;
 use MusicBrainz::Server::Translation qw( l );
+use MusicBrainz::Server::NES::Controller::Utils qw( create_edit create_update );
+
+__PACKAGE__->config(
+    tree_entity => 'MusicBrainz::Server::Entity::Tree::Work',
+);
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model       => 'NES::Work',
@@ -67,68 +74,22 @@ for my $action (qw( aliases details )) {
     };
 }
 
-sub create_edit {
-    my ($self, $c, %opts) = @_;
-
-    my $form = do {
-        my %args = (
-            ctx => $c,
-        );
-
-        $args{init_object} = $opts{subject}
-            if defined $opts{subject};
-
-        $c->form(form => $opts{form}, %args);
-    };
-
-    if ($c->form_posted && $form->submitted_and_valid($c->req->body_params)) {
-        my $work = do {
-            my $edit = $c->model('NES::Edit')->open;
-            $opts{on_post}->($form->values, $edit);
-        };
-
-        $c->response->redirect(
-            $c->uri_for_action($self->action_for('show'), [ $work->gid ]));
-    }
-    elsif (!$c->form_posted && %{ $c->req->query_params }) {
-        $form->process( params => $c->req->query_params );
-        $form->clear_errors;
-    }
-}
-
 sub edit : Chained('load') {
     my ($self, $c) = @_;
 
-    $self->create_edit(
-        $c,
+    create_update(
+        $self, $c,
         form => 'Work::Edit',
         subject => $c->stash->{work},
-        on_post => sub {
-            my ($values, $edit) = @_;
-
-            my $original_work = $c->model('NES::Work')->get_revision(
-                $values->{revision_id});
-
-            $c->model('NES::Work')->update(
-                $edit, $c->user, $values->{revision_id},
-                work_tree($values)
-            );
-
-            return $original_work;
-        }
+        build_tree => \&work_tree
     );
 }
 
 sub work_tree {
     my $values = shift;
-    return (
-        {
-            type => $values->{type_id},
-            language => $values->{language_id},
-            name => $values->{name},
-            comment => $values->{comment}
-        },
-        $values->{iswcs} // []
+    return MusicBrainz::Server::Entity::Tree::Work->new(
+        work => MusicBrainz::Server::Entity::Work->new($values),
+        iswcs => $values->{iswcs} // []
     );
 }
 
@@ -181,8 +142,8 @@ after 'merge' => sub
 sub create : Local Edit {
     my ($self, $c) = @_;
 
-    $self->create_edit(
-        $c,
+    create_edit(
+        $self, $c,
         form => 'Work',
         on_post => sub {
             my ($values, $edit) = @_;
@@ -191,13 +152,6 @@ sub create : Local Edit {
                 $edit, $c->user,
                 work_tree($values)
             );
-
-            # NES:
-            # my $privs = $c->user->privileges;
-            # if ($c->user->is_auto_editor &&
-            #     $form->field('as_auto_editor') &&
-            #     !$form->field('as_auto_editor')->value) {
-            # }
         }
     );
 }

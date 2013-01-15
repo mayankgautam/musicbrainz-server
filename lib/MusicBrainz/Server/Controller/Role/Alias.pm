@@ -9,6 +9,9 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_WORK_ADD_ALIAS $EDIT_WORK_DELETE_ALIAS $EDIT_WORK_EDIT_ALIAS
 );
 
+use MusicBrainz::Server::Entity::Alias;
+use MusicBrainz::Server::NES::Controller::Utils qw( create_update );
+
 my %model_to_edit_type = (
     add => {
         Artist => $EDIT_ARTIST_ADD_ALIAS,
@@ -30,7 +33,7 @@ my %model_to_edit_type = (
 my %model_to_search_hint_type_id = (
     Artist => 3,
     Label => 2,
-    Work => 2
+    'NES::Work' => 2
 );
 
 sub alias_type_model {
@@ -67,25 +70,30 @@ sub alias : Chained('load') PathPart('alias') CaptureArgs(1)
 sub add_alias : Chained('load') PathPart('add-alias') RequireAuth Edit
 {
     my ($self, $c) = @_;
-    my $type = $self->{entity_name};
-    my $entity = $c->stash->{ $type };
-    my $alias_model = $c->model( $self->{model} )->alias;
-    $self->edit_action($c,
-        form => 'Alias',
-        form_args => {
-            parent_id => $entity->id,
-            alias_model => $alias_model,
-            search_hint_type_id => $model_to_search_hint_type_id{ $self->{model} }
+    my $entity = $c->stash->{entity};
+    my $model_name = $self->{model};
+
+    create_update(
+        $self, $c,
+        build_form => sub {
+            $c->form(
+                form => 'Alias',
+                search_hint_type_id => $model_to_search_hint_type_id{ $model_name },
+                type_model => alias_type_model($model_name),
+                init_object => { revision_id => $entity->revision_id }
+            );
         },
-        type => $model_to_edit_type{add}->{ $self->{model} },
-        edit_args => {
-            entity => $entity
-        },
-        item => {
-            name => $entity->name,
-            id => $entity->id
-        },
-        on_creation => sub { $self->_redir_to_aliases($c) }
+        build_tree => sub {
+            my ($values, $revision) = @_;
+
+            my $aliases = $c->model($model_name)->get_aliases($revision);
+            $self->{tree_entity}->new(
+                aliases => [
+                    @$aliases,
+                    MusicBrainz::Server::Entity::Alias->new($values)
+                ]
+            );
+        }
     );
 }
 

@@ -1,41 +1,98 @@
 package MusicBrainz::Server::Data::NES::Work;
 use Moose;
 
+use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
 use MusicBrainz::Server::Entity::Work;
+use MusicBrainz::Server::WebService::Serializer::JSON::2::Utils qw( boolean );
 
 with 'MusicBrainz::Server::Data::Role::NES';
 
 sub create {
-    my ($self, $edit, $editor, $work, $iswcs) = @_;
+    my ($self, $edit, $editor, $tree) = @_;
+
+    $tree->aliases([]) unless $tree->aliases_set;
 
     my $response = $self->request('/work/create', {
         edit => $edit->id,
         editor => $editor->id,
-        _work_tree($work, $iswcs)
+        _work_tree($tree)
     });
 
     return $self->get_revision($response->{ref});
 }
 
 sub update {
-    my ($self, $edit, $editor, $base_revision, $work, $iswcs) = @_;
+    my ($self, $edit, $editor, $base_revision, $tree) = @_;
+
+    die 'Need a base revision' unless $base_revision;
+
+    my $final_tree = do {
+        if( $tree->work_set && $tree->aliases_set && $tree->iswcs_set ) {
+            $tree
+        }
+        else {
+            my $original_tree = $self->view_tree($base_revision);
+
+            $original_tree->work($tree->work)
+                if ($tree->work_set);
+
+            $original_tree->aliases($tree->aliases)
+                if ($tree->aliases_set);
+
+            $original_tree->iswcs($tree->iswcs)
+                if ($tree->iswcs_set);
+
+            $original_tree;
+        }
+    };
 
     my $response = $self->request('/work/update', {
         edit => $edit->id,
         editor => $editor->id,
-        revision => $base_revision,
-        _work_tree($work, $iswcs)
+        revision => $base_revision->revision_id,
+        _work_tree($final_tree)
     });
 
     return undef;
 }
 
+sub view_tree {
+    my ($self, $revision) = @_;
+
+    return MusicBrainz::Server::Entity::Tree::Work->new(
+        work => $revision,
+        iswcs => $self->get_iswcs($revision),
+        aliases => $self->get_aliases($revision)
+    );
+}
+
 sub _work_tree {
-    my ($work, $iswcs) = @_;
+    my $tree = shift;
+
     return (
-        work => $work,
+        work => do {
+            my $work = $tree->work;
+            {
+                 type => $work->type_id,
+                 language => $work->language_id,
+                 name => $work->name,
+                 comment => $work->comment
+            }
+        },
         iswcs => [
-            map +{ iswc => $_ }, @$iswcs
+            map +{ iswc => $_ }, @{ $tree->iswcs }
+        ],
+        aliases => [
+            map +{
+                name => $_->name,
+                'sort-name' => $_->sort_name,
+                'begin-date' => partial_date_to_hash($_->begin_date),
+                'end-date' => partial_date_to_hash($_->end_date),
+                ended => $_->ended,
+                'primary-for-locale' => boolean($_->primary_for_locale),
+                type => $_->type_id,
+                locale => $_->locale
+            }, @{ $tree->aliases }
         ]
     );
 }
@@ -89,6 +146,12 @@ sub get_aliases {
             )
         } @$response
     ]
+}
+
+sub get_iswcs {
+    my ($self, $revision) = @_;
+    warn "Unimplemented";
+    return [];
 }
 
 __PACKAGE__->meta->make_immutable;
