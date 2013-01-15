@@ -11,13 +11,33 @@ sub create {
     my $response = $self->request('/work/create', {
         edit => $edit->id,
         editor => $editor->id,
+        _work_tree($work, $iswcs)
+    });
+
+    return $self->get_revision($response->{ref});
+}
+
+sub update {
+    my ($self, $edit, $editor, $base_revision, $work, $iswcs) = @_;
+
+    my $response = $self->request('/work/update', {
+        edit => $edit->id,
+        editor => $editor->id,
+        revision => $base_revision,
+        _work_tree($work, $iswcs)
+    });
+
+    return undef;
+}
+
+sub _work_tree {
+    my ($work, $iswcs) = @_;
+    return (
         work => $work,
         iswcs => [
             map +{ iswc => $_ }, @$iswcs
         ]
-    });
-
-    return $self->get_revision($response->{ref});
+    );
 }
 
 sub get_revision {
@@ -41,7 +61,8 @@ sub _new_from_response {
         type_id => $data{type},
         language_id => $data{language},
 
-        gid => $response->{mbid}
+        gid => $response->{mbid},
+        revision_id => $response->{revision}
     );
 }
 

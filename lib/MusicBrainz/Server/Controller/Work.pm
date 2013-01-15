@@ -67,36 +67,89 @@ for my $action (qw( aliases details )) {
     };
 }
 
-with 'MusicBrainz::Server::Controller::Role::Edit' => {
-    form           => 'Work',
-    edit_type      => $EDIT_WORK_EDIT,
-    edit_arguments => sub {
-        my ($self, $c, $work) = @_;
+sub create_edit {
+    my ($self, $c, %opts) = @_;
 
-        return (
-            post_creation => sub {
-                my ($edit, $form) = @_;
-
-                my @current_iswcs = $c->model('ISWC')->find_by_works($work->id);
-                my %current_iswcs = map { $_->iswc => 1 } @current_iswcs;
-                my @submitted = @{ $form->field('iswcs')->value };
-                my %submitted = map { $_ => 1 } @submitted;
-
-                my @added = grep { !exists($current_iswcs{$_}) } @submitted;
-                my @removed = grep { !exists($submitted{$_->iswc}) } @current_iswcs;
-
-                $self->_add_iswcs($c, $form, $work, @added) if @added;
-                $self->_remove_iswcs($c, $form, $work, @removed) if @removed;
-
-                if ((@added || @removed) && $c->stash->{makes_no_changes}) {
-                    $c->stash( makes_no_changes => 0 );
-                    $c->response->redirect(
-                        $c->uri_for_action($self->action_for('show'), [ $work->gid ]));
-                }
-            }
+    my $form = do {
+        my %args = (
+            ctx => $c,
         );
+
+        $args{init_object} = $opts{subject}
+            if defined $opts{subject};
+
+        $c->form(form => $opts{form}, %args);
+    };
+
+    if ($c->form_posted && $form->submitted_and_valid($c->req->body_params)) {
+        my $work = do {
+            my $edit = $c->model('NES::Edit')->open;
+            $opts{on_post}->($form->values, $edit);
+        };
+
+        $c->response->redirect(
+            $c->uri_for_action($self->action_for('show'), [ $work->gid ]));
     }
-};
+    elsif (!$c->form_posted && %{ $c->req->query_params }) {
+        $form->process( params => $c->req->query_params );
+        $form->clear_errors;
+    }
+}
+
+sub edit : Chained('load') {
+    my ($self, $c) = @_;
+
+    $self->create_edit(
+        $c,
+        form => 'Work::Edit',
+        subject => $c->stash->{work},
+        on_post => sub {
+            my ($values, $edit) = @_;
+
+            my $original_work = $c->model('NES::Work')->get_revision(
+                $values->{revision_id});
+
+            $c->model('NES::Work')->update(
+                $edit, $c->user, $values->{revision_id},
+                work_tree($values)
+            );
+
+            return $original_work;
+        }
+    );
+}
+
+sub work_tree {
+    my $values = shift;
+    return (
+        {
+            type => $values->{type_id},
+            language => $values->{language_id},
+            name => $values->{name},
+            comment => $values->{comment}
+        },
+        $values->{iswcs} // []
+    );
+}
+
+# with 'MusicBrainz::Server::Controller::Role::Edit' => {
+#                 my @current_iswcs = $c->model('ISWC')->find_by_works($work->id);
+#                 my %current_iswcs = map { $_->iswc => 1 } @current_iswcs;
+#                 my @submitted = @{ $form->field('iswcs')->value };
+#                 my %submitted = map { $_ => 1 } @submitted;
+
+#                 my @added = grep { !exists($current_iswcs{$_}) } @submitted;
+#                 my @removed = grep { !exists($submitted{$_->iswc}) } @current_iswcs;
+
+#                 $self->_add_iswcs($c, $form, $work, @added) if @added;
+#                 $self->_remove_iswcs($c, $form, $work, @removed) if @removed;
+
+#                 if ((@added || @removed) && $c->stash->{makes_no_changes}) {
+#                     $c->stash( makes_no_changes => 0 );
+#                     $c->response->redirect(
+#                         $c->uri_for_action($self->action_for('show'), [ $work->gid ]));
+#                 }
+# };
 
 with 'MusicBrainz::Server::Controller::Role::Merge' => {
     edit_type => $EDIT_WORK_MERGE,
@@ -128,36 +181,25 @@ after 'merge' => sub
 sub create : Local Edit {
     my ($self, $c) = @_;
 
-    my $form = $c->form( form => 'Work', ctx => $c );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->body_params)) {
-        my $edit = $c->model('NES::Edit')->open;
+    $self->create_edit(
+        $c,
+        form => 'Work',
+        on_post => sub {
+            my ($values, $edit) = @_;
 
-        my $values = $form->values;
-        my $work_revision = $c->model('NES::Work')->create(
-            $edit, $c->user,
-            {
-                type => $values->{type_id},
-                language => $values->{language_id},
-                name => $values->{name},
-                comment => $values->{comment}
-            },
-            $values->{iswcs} // []
-        );
+            return $c->model('NES::Work')->create(
+                $edit, $c->user,
+                work_tree($values)
+            );
 
-        # NES:
-        # my $privs = $c->user->privileges;
-        # if ($c->user->is_auto_editor &&
-        #     $form->field('as_auto_editor') &&
-        #     !$form->field('as_auto_editor')->value) {
-        # }
-
-        $c->response->redirect(
-            $c->uri_for_action($self->action_for('show'), [ $work_revision->gid ]));
-    }
-    elsif (!$c->form_posted && %{ $c->req->query_params }) {
-        $form->process( params => $c->req->query_params );
-        $form->clear_errors;
-    }
+            # NES:
+            # my $privs = $c->user->privileges;
+            # if ($c->user->is_auto_editor &&
+            #     $form->field('as_auto_editor') &&
+            #     !$form->field('as_auto_editor')->value) {
+            # }
+        }
+    );
 }
 
 sub _add_iswcs {
