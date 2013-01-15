@@ -122,16 +122,6 @@ after 'merge' => sub
     $c->model('ISWC')->load_for_works(@{ $c->stash->{to_merge} });
 };
 
-# with 'MusicBrainz::Server::Controller::Role::Create' => {
-#             post_creation => sub {
-#                 my ($edit, $form) = @_;
-#                 my $work = $c->model('Work')->get_by_id($edit->entity_id);
-#                 my @iswcs = @{ $form->field('iswcs')->value };
-#                 $self->_add_iswcs($c, $form, $work, @iswcs) if scalar @iswcs;
-#             }
-# };
-
-
 sub create : Local Edit {
     my ($self, $c) = @_;
 
@@ -147,9 +137,11 @@ sub create : Local Edit {
                 language => $values->{language_id},
                 name => $values->{name},
                 comment => $values->{comment}
-            }
+            },
+            $values->{iswcs} // []
         );
 
+        # NES:
         # my $privs = $c->user->privileges;
         # if ($c->user->is_auto_editor &&
         #     $form->field('as_auto_editor') &&
