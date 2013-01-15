@@ -71,5 +71,25 @@ sub tags {
     $self->c->model('Work')->tags;
 }
 
+sub get_aliases {
+    my ($self, $work) = @_;
+    my $response = $self->request('/work/view-aliases', {
+        revision => $work->revision_id
+    });
+    return [
+        map {
+            MusicBrainz::Server::Entity::Alias->new(
+                name => $_->{name},
+                sort_name => $_->{'sort-name'},
+                locale => $_->{locale},
+                type_id => $_->{type},
+                begin_date => MusicBrainz::Server::Entity::PartialDate->new($_->{begin_date}),
+                end_date => MusicBrainz::Server::Entity::PartialDate->new($_->{end_date}),
+                ended => $_->{ended}
+            )
+        } @$response
+    ]
+}
+
 __PACKAGE__->meta->make_immutable;
 1;

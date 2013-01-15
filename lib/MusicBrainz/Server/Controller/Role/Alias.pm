@@ -33,14 +33,24 @@ my %model_to_search_hint_type_id = (
     Work => 2
 );
 
+sub alias_type_model {
+    my ($c, $parent) = @_;
+    my %type_model = (
+        'NES::Work' => 'Work'
+    );
+    return $c->model($type_model{$parent})->alias_type;
+}
+
 sub aliases : Chained('load') PathPart('aliases')
 {
     my ($self, $c) = @_;
 
     my $entity = $c->stash->{$self->{entity_name}};
-    my $m = $c->model($self->{model});
-    my $aliases = $m->alias->find_by_entity_id($entity->id);
-    $m->alias_type->load(@$aliases);
+    my $m = $self->{model};
+
+    my $aliases = $c->model($m)->get_aliases($entity);
+    alias_type_model($c, $m)->load(@$aliases);
+
     $c->stash(
         aliases => $aliases,
     );
