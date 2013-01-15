@@ -45,5 +45,10 @@ sub _new_from_response {
     );
 }
 
+sub tags {
+    my $self = shift;
+    $self->c->model('Work')->tags;
+}
+
 __PACKAGE__->meta->make_immutable;
 1;

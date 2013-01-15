@@ -15,24 +15,20 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
     model       => 'NES::Work',
     entity_name => 'work',
 };
-# with 'MusicBrainz::Server::Controller::Role::Annotation';
+
 with 'MusicBrainz::Server::Controller::Role::Alias';
 with 'MusicBrainz::Server::Controller::Role::Details';
-# with 'MusicBrainz::Server::Controller::Role::Relationship';
-with 'MusicBrainz::Server::Controller::Role::Rating';
 with 'MusicBrainz::Server::Controller::Role::EditListing';
+with 'MusicBrainz::Server::Controller::Role::Rating';
+with 'MusicBrainz::Server::Controller::Role::Tag';
+# with 'MusicBrainz::Server::Controller::Role::Annotation';
+# with 'MusicBrainz::Server::Controller::Role::Relationship';
 # with 'MusicBrainz::Server::Controller::Role::Cleanup';
 # with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 
 use aliased 'MusicBrainz::Server::Entity::ArtistCredit';
 
 sub base : Chained('/') PathPart('work') CaptureArgs(0) { }
-
-################################################################################
-# with 'MusicBrainz::Server::Controller::Role::Tag';
-sub tag_async : Chained('load') { }
-sub tags : Chained('load') { }
-################################################################################
 
 after 'load' => sub
 {
