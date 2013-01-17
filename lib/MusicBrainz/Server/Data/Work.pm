@@ -122,24 +122,6 @@ sub load
     load_subobjects($self, 'work', @objs);
 }
 
-sub insert
-{
-    my ($self, @works) = @_;
-    my %names = $self->find_or_insert_names(map { $_->{name} } @works);
-    my $class = $self->_entity_class;
-    my @created;
-    for my $work (@works)
-    {
-        my $row = $self->_hash_to_row($work, \%names);
-        $row->{gid} = $work->{gid} || generate_gid();
-        push @created, $class->new(
-            id => $self->sql->insert_row('work', $row, 'id'),
-            gid => $row->{gid}
-        );
-    }
-    return @works > 1 ? @created : $created[0];
-}
-
 sub update
 {
     my ($self, $work_id, $update) = @_;

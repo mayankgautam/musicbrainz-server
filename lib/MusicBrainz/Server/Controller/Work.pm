@@ -4,10 +4,7 @@ use Moose;
 BEGIN { extends 'MusicBrainz::Server::Controller'; }
 
 use MusicBrainz::Server::Constants qw(
-    $EDIT_WORK_EDIT
     $EDIT_WORK_MERGE
-    $EDIT_WORK_ADD_ISWCS
-    $EDIT_WORK_REMOVE_ISWC
 );
 use MusicBrainz::Server::Entity::Work;
 use MusicBrainz::Server::Entity::Tree::Work;
@@ -65,7 +62,7 @@ sub show : PathPart('') Chained('load')
 
 # NES - originally:
 # for my $action (qw( relationships aliases tags details )) {
-for my $action (qw( aliases details )) {
+for my $action (qw( aliases tags details )) {
     after $action => sub {
         my ($self, $c) = @_;
         my $work = $c->stash->{work};
@@ -92,25 +89,6 @@ sub work_tree {
         iswcs => $values->{iswcs} // []
     );
 }
-
-# with 'MusicBrainz::Server::Controller::Role::Edit' => {
-#                 my @current_iswcs = $c->model('ISWC')->find_by_works($work->id);
-#                 my %current_iswcs = map { $_->iswc => 1 } @current_iswcs;
-#                 my @submitted = @{ $form->field('iswcs')->value };
-#                 my %submitted = map { $_ => 1 } @submitted;
-
-#                 my @added = grep { !exists($current_iswcs{$_}) } @submitted;
-#                 my @removed = grep { !exists($submitted{$_->iswc}) } @current_iswcs;
-
-#                 $self->_add_iswcs($c, $form, $work, @added) if @added;
-#                 $self->_remove_iswcs($c, $form, $work, @removed) if @removed;
-
-#                 if ((@added || @removed) && $c->stash->{makes_no_changes}) {
-#                     $c->stash( makes_no_changes => 0 );
-#                     $c->response->redirect(
-#                         $c->uri_for_action($self->action_for('show'), [ $work->gid ]));
-#                 }
-# };
 
 with 'MusicBrainz::Server::Controller::Role::Merge' => {
     edit_type => $EDIT_WORK_MERGE,
@@ -154,37 +132,6 @@ sub create : Local Edit {
             );
         }
     );
-}
-
-sub _add_iswcs {
-    my ($self, $c, $form, $work, @iswcs) = @_;
-
-    $c->model('MB')->with_transaction(sub {
-        $self->_insert_edit(
-            $c, $form,
-            edit_type => $EDIT_WORK_ADD_ISWCS,
-            iswcs => [ map {
-                iswc => $_,
-                work => {
-                    id => $work->id,
-                    name => $work->name
-                }
-            }, @iswcs ]
-        );
-    });
-}
-
-sub _remove_iswcs {
-    my ($self, $c, $form, $work, @iswcs) = @_;
-
-    $c->model('MB')->with_transaction(sub {
-        $self->_insert_edit(
-            $c, $form,
-            edit_type => $EDIT_WORK_REMOVE_ISWC,
-            iswc => $_,
-            work => $work
-        );
-    }) for @iswcs;
 }
 
 1;
