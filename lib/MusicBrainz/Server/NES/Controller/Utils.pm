@@ -2,6 +2,7 @@ package MusicBrainz::Server::NES::Controller::Utils;
 use strict;
 use warnings;
 
+use Scalar::Util qw( blessed );
 use Sub::Exporter -setup => {
     exports => [qw( create_edit create_update )]
 };
@@ -10,20 +11,19 @@ sub create_edit {
     my ($controller, $c, %opts) = @_;
 
     my $form = do {
-        if (my $build_form = $opts{build_form}) {
-            $build_form->()
+        my $f = $opts{form};
+        if (blessed($f)) {
+            $f;
         }
         else {
-            my $form = do {
-                my %args = (
-                    ctx => $c,
-                );
+            my %args = (
+                ctx => $c,
+            );
 
-                $args{init_object} = $opts{subject}
-                    if defined $opts{subject};
+            $args{init_object} = $opts{subject}
+                if defined $opts{subject};
 
-                $c->form(form => $opts{form}, %args);
-            }
+            $c->form(form => $f, %args);
         }
     };
 
@@ -42,7 +42,6 @@ sub create_edit {
                 }
             );
         }
-
 
         # NES:
         # my $privs = $c->user->privileges;

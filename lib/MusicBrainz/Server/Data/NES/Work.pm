@@ -10,6 +10,8 @@ with 'MusicBrainz::Server::Data::Role::NES';
 sub create {
     my ($self, $edit, $editor, $tree) = @_;
 
+    $tree->aliases([]) unless $tree->aliases_set;
+
     my $response = $self->request('/work/create', {
         edit => $edit->id,
         editor => $editor->id,
@@ -25,7 +27,7 @@ sub update {
     die 'Need a base revision' unless $base_revision;
 
     my $final_tree = do {
-        if( $tree->work_set && $tree->iswcs_set ) {
+        if( $tree->work_set && $tree->aliases_set && $tree->iswcs_set ) {
             $tree
         }
         else {
@@ -33,6 +35,9 @@ sub update {
 
             $original_tree->work($tree->work)
                 if ($tree->work_set);
+
+            $original_tree->aliases($tree->aliases)
+                if ($tree->aliases_set);
 
             $original_tree->iswcs($tree->iswcs)
                 if ($tree->iswcs_set);
@@ -57,6 +62,7 @@ sub view_tree {
     return MusicBrainz::Server::Entity::Tree::Work->new(
         work => $revision,
         iswcs => $self->get_iswcs($revision),
+        aliases => $self->get_aliases($revision)
     );
 }
 
@@ -75,6 +81,18 @@ sub _work_tree {
         },
         iswcs => [
             map +{ iswc => $_ }, @{ $tree->iswcs }
+        ],
+        aliases => [
+            map +{
+                name => $_->name,
+                'sort-name' => $_->sort_name,
+                'begin-date' => partial_date_to_hash($_->begin_date),
+                'end-date' => partial_date_to_hash($_->end_date),
+                ended => $_->ended,
+                'primary-for-locale' => boolean($_->primary_for_locale),
+                type => $_->type_id,
+                locale => $_->locale
+            }, @{ $tree->aliases }
         ]
     );
 }
@@ -110,6 +128,27 @@ sub _new_from_response {
 sub tags {
     my $self = shift;
     $self->c->model('Work')->tags;
+}
+
+sub get_aliases {
+    my ($self, $work) = @_;
+    my $response = $self->request('/work/view-aliases', {
+        revision => $work->revision_id
+    });
+    return [
+        map {
+            MusicBrainz::Server::Entity::Alias->new(
+                name => $_->{name},
+                sort_name => $_->{'sort-name'},
+                locale => $_->{locale},
+                type_id => $_->{type},
+                begin_date => MusicBrainz::Server::Entity::PartialDate->new($_->{begin_date}),
+                end_date => MusicBrainz::Server::Entity::PartialDate->new($_->{end_date}),
+                ended => $_->{ended},
+                primary_for_locale => $_->{'primary-for-locale'}
+            )
+        } @$response
+    ]
 }
 
 sub get_iswcs {
