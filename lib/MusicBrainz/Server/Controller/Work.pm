@@ -40,7 +40,7 @@ after 'load' => sub
 
     my $work = $c->stash->{work};
     # $c->model('Work')->load_meta($work);
-    # $c->model('ISWC')->load_for_works($work);
+    $c->model('NES::ISWC')->load_for_works($work);
     if ($c->user_exists) {
         $c->model('Work')->rating->load_user_ratings($c->user->id, $work);
     }
