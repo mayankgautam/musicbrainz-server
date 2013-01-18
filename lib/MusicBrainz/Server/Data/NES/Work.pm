@@ -142,7 +142,8 @@ sub get_aliases {
                 type_id => $_->{type},
                 begin_date => MusicBrainz::Server::Entity::PartialDate->new($_->{begin_date}),
                 end_date => MusicBrainz::Server::Entity::PartialDate->new($_->{end_date}),
-                ended => $_->{ended}
+                ended => $_->{ended},
+                primary_for_locale => $_->{'primary-for-locale'}
             )
         } @$response
     ]
