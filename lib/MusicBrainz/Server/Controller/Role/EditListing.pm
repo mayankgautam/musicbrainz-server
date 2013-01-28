@@ -13,18 +13,18 @@ sub edits : Chained('load') PathPart RequireAuth
         my ($type, $entity) = @_;
         return sub {
             my ($offset, $limit) = @_;
-            $c->model('Edit')->find({ $type => $entity->id }, $offset, $limit);
+            return $c->model('NES::Edit')->find_for_work($entity)
         }
     });
-    $c->stash( 
-        refine_url_args => 
-            { auto_edit_filter => '', order=> 'desc', negation=> 0, 
-              combinator=>'and', 
-              'conditions.0.field' => model_to_type( $self->{model} ), 
-              'conditions.0.operator' => '=', 
-              'conditions.0.name' => $c->stash->{ $self->{entity_name} }->name, 
-              'conditions.0.args.0' => $c->stash->{ $self->{entity_name} }->id, 
-              'conditions.0.user_id' => $c->user->id },
+    $c->stash(
+        # refine_url_args =>
+        #     { auto_edit_filter => '', order=> 'desc', negation=> 0,
+        #       combinator=>'and',
+        #       'conditions.0.field' => model_to_type( $self->{model} ),
+        #       'conditions.0.operator' => '=',
+        #       'conditions.0.name' => $c->stash->{ $self->{entity_name} }->name,
+        #       'conditions.0.args.0' => $c->stash->{ $self->{entity_name} }->id,
+        #       'conditions.0.user_id' => $c->user->id },
     );
 }
 
@@ -59,13 +59,14 @@ sub _list {
     my ($self, $c, $find) = @_;
 
     my $type   = model_to_type( $self->{model} );
-    my $entity = $c->stash->{ $self->{entity_name} };
-    my $edits  = $self->_load_paged($c, $find->($type, $entity));
+    my $entity = $c->stash->{entity};
+    # my $edits  = $self->_load_paged($c, $find->($type, $entity));
+    my $edits = [ $find->($type, $entity)->(0, 50) ];
 
-    $c->model('Edit')->load_all(@$edits);
-    $c->model('Vote')->load_for_edits(@$edits);
-    $c->model('EditNote')->load_for_edits(@$edits);
-    $c->model('Editor')->load(map { ($_, @{ $_->votes, $_->edit_notes }) } @$edits);
+    # $c->model('Edit')->load_all(@$edits);
+    # $c->model('Vote')->load_for_edits(@$edits);
+    # $c->model('EditNote')->load_for_edits(@$edits);
+    # $c->model('Editor')->load(map { ($_, @{ $_->votes, $_->edit_notes }) } @$edits);
 
     $c->stash(
         edits => $edits,

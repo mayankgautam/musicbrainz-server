@@ -75,17 +75,10 @@
                     <div class="edit-actions c[%- PROCESS edit_status -%]">
                         [%- INCLUDE 'edit/info.tt' summary=1 -%]
                     </div>
+                    [% edit.html %]
 
-                    <div class="edit-details">
-                        [% IF edit.data.defined %]
-                           [%-INCLUDE "edit/details/${edit.edit_template}.tt" %]
-                        [% ELSE %]
-                           <p>[% l('An error occured while loading this edit') %]</p>
-                        [% END %]
-                    </div>
-                    
                     [% INCLUDE 'edit/notes.tt' verbose='not-verbose' hide=1 rows=1 index=loop.index %]
-    
+
                     <div class="seperator">
                     </div>
                 </div>
