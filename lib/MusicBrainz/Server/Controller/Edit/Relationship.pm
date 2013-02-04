@@ -4,7 +4,7 @@ use Moose;
 BEGIN { extends 'MusicBrainz::Server::Controller' };
 
 use MusicBrainz::Server::Constants qw( $EDIT_RELATIONSHIP_DELETE );
-use MusicBrainz::Server::Data::Utils qw( type_to_model );
+use MusicBrainz::Server::Data::Utils qw( type_to_controller type_to_model );
 use MusicBrainz::Server::Entity::Link;
 use MusicBrainz::Server::Entity::NES::Relationship;
 use MusicBrainz::Server::Entity::Tree::Work;
@@ -203,77 +203,76 @@ sub create : Local RequireAuth Edit
         $c->detach('/error_500');
     }
 
-    my $source = $source_model->get_by_gid($source_gid);
-    my $dest   = $dest_model->get_by_gid($dest_gid);
+    $c->model('MB')->with_nes_transaction(sub {
+        my ($source, $dest) = ($source_model->get_by_gid($source_gid), $dest_model->get_by_gid($dest_gid));
 
-    if ($type0 eq $type1 && $source->id == $dest->id) {
-        $c->stash( message => l('A relationship requires 2 different entities') );
-        $c->detach('/error_500');
-    }
-
-    my $tree = $c->model('LinkType')->get_tree($type0, $type1);
-    my %type_info = build_type_info($tree);
-
-    if (!%type_info) {
-        $c->stash(
-            template => 'edit/relationship/cannot_create.tt',
-            type0 => $type0,
-            type1 => $type1
-        );
-        $c->detach;
-    }
-
-    $c->stash(
-        root      => $tree,
-        type_info => JSON->new->latin1->encode(\%type_info),
-    );
-
-    my $attr_tree = $c->model('LinkAttributeType')->get_tree();
-    $c->stash( attr_tree => $attr_tree );
-    $self->attr_tree($attr_tree);
-
-    my $form = $c->form(
-        form => 'Relationship',
-        attr_tree => $attr_tree,
-        root => $tree
-    );
-    $c->stash(
-        source => $source, source_type => $type0,
-        dest   => $dest,   dest_type   => $type1
-    );
-
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
-        my @attributes = $self->flatten_attributes($form->field('attrs'));
-
-        my $entity0 = $source;
-        my $entity1 = $dest;
-
-        if ($type0 eq $type1 && $form->field('direction')->value)
-        {
-            ($entity0, $entity1) = ($entity1, $entity0);
+        if ($type0 eq $type1 && $source->gid eq $dest->gid) {
+            $c->stash( message => l('A relationship requires 2 different entities') );
+            $c->detach('/error_500');
         }
 
-        $c->model('MB')->with_transaction(sub {
-            $self->try_and_insert(
-                $c, $form,
-                $type0, $type1,
-                begin_date   => $form->field('period.begin_date')->value,
-                end_date     => $form->field('period.end_date')->value,,
-                attributes   => \@attributes,
-                link_type_id => $form->field('link_type_id')->value,
-                entity0      => $entity0,
-                entity1      => $entity1,
-                ended        => $form->field('period.ended')->value
-            ) or
-                $self->detach_existing($c);
-        });
+        my $tree = $c->model('LinkType')->get_tree($type0, $type1);
+        my %type_info = build_type_info($tree);
 
-        delete $c->session->{relationship};
-        my $redirect = $c->req->params->{returnto} ||
-            $c->uri_for_action($c->controller(type_to_model($type0))->action_for('show'), [ $source_gid ]);
-        $c->response->redirect($redirect);
-        $c->detach;
-    }
+        if (!%type_info) {
+            $c->stash(
+                template => 'edit/relationship/cannot_create.tt',
+                type0 => $type0,
+                type1 => $type1
+            );
+            $c->detach;
+        }
+
+        $c->stash(
+            root      => $tree,
+            type_info => JSON->new->latin1->encode(\%type_info),
+        );
+
+        my $attr_tree = $c->model('LinkAttributeType')->get_tree();
+        $c->stash( attr_tree => $attr_tree );
+        $self->attr_tree($attr_tree);
+
+        my $form = $c->form(
+            form => 'Relationship',
+            attr_tree => $attr_tree,
+            root => $tree
+        );
+        $c->stash(
+            source => $source, source_type => $type0,
+            dest   => $dest,   dest_type   => $type1
+        );
+
+        if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+            my @attributes = $self->flatten_attributes($form->field('attrs'));
+
+            my $entity0 = $source;
+            my $entity1 = $dest;
+
+            if ($type0 eq $type1 && $form->field('direction')->value)
+                {
+                    ($entity0, $entity1) = ($entity1, $entity0);
+                }
+
+            my $edit = $c->model('NES::Edit')->open;
+            run_update($c, $edit, 'NES::Work', $entity0, sub {
+                my $rels = shift;
+                return [
+                    @$rels,
+                    form_relationship(
+                        $form->field('link_type_id')->value,
+                        \@attributes,
+                        $type1 => $entity1
+                    )
+                ];
+            });
+
+            delete $c->session->{relationship};
+            my $redirect = $c->req->params->{returnto} ||
+                $c->uri_for_action($c->controller(type_to_controller($type0))->action_for('show'), [ $source_gid ]);
+            $c->response->redirect($redirect);
+            $c->detach;
+        }
+    });
 }
 
 sub create_url : Local RequireAuth Edit
@@ -342,43 +341,54 @@ sub create_url : Local RequireAuth Edit
             my @attributes = $self->flatten_attributes($form->field('attrs'));
             my $url = $c->model('NES::URL')->find_or_insert($edit, $c->user, $form->field('url')->value);
 
-            $c->model('NES::Work')->update(
-                $edit, $c->user, $entity,
-                MusicBrainz::Server::Entity::Tree::Work->new(
-                    relationships => [
-                        MusicBrainz::Server::Entity::NES::Relationship->new(
-                            link => MusicBrainz::Server::Entity::Link->new(
-                                type_id => $form->field('link_type_id')->value
-                            ),
-                            target => $url,
-                            target_type => 'url'
-                        )
-                    ]
-                )
-            );
+            run_update($c, $edit, 'NES::Work', $entity, sub {
+                my $rels = shift;
+                return [
+                    @$rels,
+                    form_relationship(
+                        $form->field('link_type_id')->value,
+                        \@attributes,
+                        url => $url
+                    )
+                ]
+            });
 
-            # my $e0 = $types[0] eq 'url' ? $url : $entity;
-            # my $e1 = $types[1] eq 'url' ? $url : $entity;
-
-            # $c->stash( url => $form->field('url')->value );
-            # $c->model('MB')->with_transaction(sub {
-            #     $self->try_and_insert(
-            #         $c, $form,
-            #         @types,
-            #         entity0 => $e0,
-            #         entity1 => $e1,
-            #         link_type_id => $form->field('link_type_id')->value,
-            #         attributes => \@attributes,
-            #         ended => 0
-            #     ) or $self->detach_existing($c);
-            # });
-
-            # my $redirect = $c->controller(type_to_model($type))->action_for('show');
-            # $c->response->redirect($c->uri_for_action($redirect, [ $gid ]));
-            # $c->detach;
-
+            my $redirect = $c->controller(type_to_controller($type))->action_for('show');
+            $c->response->redirect($c->uri_for_action($redirect, [ $gid ]));
+            $c->detach;
         }
     });
+}
+
+sub form_relationship {
+    my ($link_type_id, $attributes, $target_type, $target) = @_;
+    return MusicBrainz::Server::Entity::NES::Relationship->new(
+        link => MusicBrainz::Server::Entity::Link->new(
+            type_id => $link_type_id,
+            attributes => [
+                map {
+                    MusicBrainz::Server::Entity::LinkAttributeType->new(
+                        id => $_
+                    )
+                  } @$attributes
+              ]
+        ),
+        target => $target,
+        target_type => $target_type
+    );
+}
+
+sub run_update {
+    my ($c, $edit, $m, $source, $update) = @_;
+
+    my $relationships = $c->model($m)->get_relationships($source);
+
+    $c->model('NES::Work')->update(
+        $edit, $c->user, $source,
+        MusicBrainz::Server::Entity::Tree::Work->new(
+            relationships => $update->($relationships)
+        )
+    );
 }
 
 sub delete : Local RequireAuth Edit

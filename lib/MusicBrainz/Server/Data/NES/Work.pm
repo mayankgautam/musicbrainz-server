@@ -67,8 +67,9 @@ sub tree_to_json {
             partition_by { $_->{target_type} }
                 map +{
                     target => $_->target->gid,
-                    type => $_->link_type_id,
-                    target_type => $_->target_type
+                    type => $_->link->type_id,
+                    target_type => $_->target_type,
+                    attributes => [ map { $_->id } $_->link->all_attributes ]
                 }, @{ $tree->relationships }
         }
     );
@@ -128,6 +129,10 @@ sub get_annotation {
     )->{annotation};
 }
 
+my %rel_type_to_model = (
+    work => 'NES::Work'
+);
+
 sub get_relationships {
     my ($self, $revision) = @_;
     my @rels =
@@ -138,6 +143,12 @@ sub get_relationships {
                 when (/url/) {
                     $target = $self->c->model('NES::URL')->get_by_gid($rel->{target});
                 }
+
+                default {
+                    $target = $self->c->model(
+                        $rel_type_to_model{$_} // die 'Unknown relationship type'
+                    )->get_by_gid($rel->{target});
+                }
             }
 
             MusicBrainz::Server::Entity::NES::Relationship->new(
@@ -145,7 +156,10 @@ sub get_relationships {
                 target_gid => $rel->{target},
                 link => MusicBrainz::Server::Entity::Link->new(
                     type_id => $rel->{type},
-                    direction => $MusicBrainz::Server::Entity::NES::Relationship::DIRECTION_BACKWARD
+                    direction => $MusicBrainz::Server::Entity::NES::Relationship::DIRECTION_BACKWARD,
+                    attributes => [
+                        values %{ $self->c->model('LinkAttributeType')->get_by_ids(@{ $rel->{attributes} }) }
+                    ]
                 ),
                 target_type => $rel->{'target-type'},
             );
@@ -155,6 +169,10 @@ sub get_relationships {
                 { revision => $revision->revision_id }
             )
         };
+
+    for my $attribute (map { $_->link->all_attributes } @rels) {
+        $attribute->root($self->c->model('LinkAttributeType')->get_by_id($attribute->root_id));
+    }
 
     $self->c->model('LinkType')->load(map { $_->link } @rels);
 
