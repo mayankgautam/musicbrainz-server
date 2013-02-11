@@ -72,7 +72,7 @@ sub with_transaction {
         return $w ? @r : $r;
     }
     catch {
-        try { $self->request('/close-session', {}) };
+        try { $self->request('/abort-session', {}) };
         $self->clear_session_token;
 
         die $_;

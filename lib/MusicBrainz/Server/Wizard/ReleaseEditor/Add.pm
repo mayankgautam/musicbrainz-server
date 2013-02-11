@@ -4,13 +4,23 @@ use namespace::autoclean;
 
 use Encode qw( encode );
 use JSON qw( decode_json );
-use MusicBrainz::Server::CGI::Expand qw( collapse_hash );
-use MusicBrainz::Server::Translation qw( l );
-use MusicBrainz::Server::Data::Utils qw( object_to_ids artist_credit_to_ref trim );
-use MusicBrainz::Server::Validation qw( is_guid );
-use MusicBrainz::Server::Edit::Utils qw( clean_submitted_artist_credits );
-use MusicBrainz::Server::Entity::ArtistCredit;
 use List::UtilsBy qw( uniq_by );
+use MusicBrainz::Server::CGI::Expand qw( collapse_hash );
+use MusicBrainz::Server::Data::Utils qw( object_to_ids artist_credit_to_ref trim );
+use MusicBrainz::Server::Edit::Utils qw( clean_submitted_artist_credits artist_credit_preview );
+use MusicBrainz::Server::Entity::ArtistCredit;
+use MusicBrainz::Server::Entity::Barcode;
+use MusicBrainz::Server::Entity::PartialDate;
+use MusicBrainz::Server::Entity::Release;
+use MusicBrainz::Server::Entity::ReleaseGroup;
+use MusicBrainz::Server::Entity::ReleaseGroupSecondaryType;
+use MusicBrainz::Server::Entity::Track;
+use MusicBrainz::Server::Entity::Tracklist;
+use MusicBrainz::Server::Entity::Tree::Recording;
+use MusicBrainz::Server::Entity::Tree::Release;
+use MusicBrainz::Server::Entity::Tree::ReleaseGroup;
+use MusicBrainz::Server::Translation qw( l );
+use MusicBrainz::Server::Validation qw( is_guid );
 
 extends 'MusicBrainz::Server::Wizard::ReleaseEditor';
 
@@ -46,30 +56,30 @@ sub prepare_duplicates
 {
     my $self = shift;
 
-    my $name = $self->get_value ('information', 'name');
-    my $artist_credit = $self->get_value ('information', 'artist_credit');
-    my $rg_id = $self->get_value ('information', 'release_group_id');
+    # my $name = $self->get_value ('information', 'name');
+    # my $artist_credit = $self->get_value ('information', 'artist_credit');
+    # my $rg_id = $self->get_value ('information', 'release_group_id');
 
-    my @releases = $self->c->model('Release')->find_similar(
-        name => $name,
-        artist_credit => clean_submitted_artist_credits($artist_credit)
-    );
+    # my @releases = $self->c->model('Release')->find_similar(
+    #     name => $name,
+    #     artist_credit => clean_submitted_artist_credits($artist_credit)
+    # );
 
-    if ($rg_id)
-    {
-        my ($more_releases, $hits) = $self->c->model('Release')->find_by_release_group ($rg_id);
+    # if ($rg_id)
+    # {
+    #     my ($more_releases, $hits) = $self->c->model('Release')->find_by_release_group ($rg_id);
 
-        @releases = uniq_by { $_->id } @$more_releases, @releases;
-    }
+    #     @releases = uniq_by { $_->id } @$more_releases, @releases;
+    # }
 
-    $self->c->model('Medium')->load_for_releases(@releases);
-    $self->c->model('MediumFormat')->load(map { $_->all_mediums } @releases);
-    $self->c->model('Country')->load(@releases);
-    $self->c->model('ReleaseLabel')->load(@releases);
-    $self->c->model('Label')->load(map { $_->all_labels } @releases);
+    # $self->c->model('Medium')->load_for_releases(@releases);
+    # $self->c->model('MediumFormat')->load(map { $_->all_mediums } @releases);
+    # $self->c->model('Country')->load(@releases);
+    # $self->c->model('ReleaseLabel')->load(@releases);
+    # $self->c->model('Label')->load(map { $_->all_labels } @releases);
 
     $self->c->stash(
-        similar_releases => \@releases
+        similar_releases => [] # \@releases
     );
 }
 
@@ -225,6 +235,74 @@ augment 'create_edits' => sub
     return $release;
 };
 
+sub create_new_release_revision {
+    my ($self, $edit, $data) = @_;
+
+    $data->{release_group_gid} //= $self->c->model('NES::ReleaseGroup')->create(
+        $edit, $self->c->user,
+        MusicBrainz::Server::Entity::Tree::ReleaseGroup->new(
+            release_group => MusicBrainz::Server::Entity::ReleaseGroup->new(
+                name => trim( $data->{release_group}{name} // $data->{name} ),
+                artist_credit => artist_credit_preview(undef, $data->{artist_credit}),
+                primary_type_id => $data->{primary_type_id},
+                comment => '',
+                secondary_type_ids => [
+                    map {
+                        MusicBrainz::Server::Entity::ReleaseGroupSecondaryType->new(id => $_)
+                    } @{ $data->{secondary_type_ids} // [] }
+                ]
+            )
+        )
+    )->gid;
+
+    return $self->c->model('NES::Release')->create(
+        $edit, $self->c->user,
+        MusicBrainz::Server::Entity::Tree::Release->new(
+            release => MusicBrainz::Server::Entity::Release->new(
+                name => trim($data->{name}),
+                status_id => $data->{status_id},
+                packaging_id => $data->{packaging_id},
+                artist_credit => artist_credit_preview(undef, $data->{artist_credit}),
+                release_group => MusicBrainz::Server::Entity::ReleaseGroup->new( gid => $data->{release_group_gid} ),
+                barcode => MusicBrainz::Server::Entity::Barcode->new($data->{no_barcode} ? '' : defined($data->{barcode}) ? trim($data->{barcode}) : undef),
+                country_id => $data->{country_id},
+                date => MusicBrainz::Server::Entity::PartialDate->new($data->{date}),
+                language_id => $data->{language_id},
+                script_id => $data->{script_id},
+                comment => trim($data->{comment} // ''),
+                mediums => [
+                    map {
+                        MusicBrainz::Server::Entity::Medium->new(
+                            name => trim($_->{name} // ''),
+                            format_id => $_->{format_id},
+                            tracklist => $_->{tracks}
+                                ? MusicBrainz::Server::Entity::Tracklist->new(
+                                    tracks => [ map {
+                                        MusicBrainz::Server::Entity::Track->new(
+                                            recording_gid => $_->recording_gid // $self->c->model('NES::Recording')->create(
+                                                $edit, $self->c->user,
+                                                MusicBrainz::Server::Entity::Tree::Recording->new(
+                                                    recording => MusicBrainz::Server::Entity::Recording->new(
+                                                        name => trim($_->name),
+                                                        artist_credit => $_->artist_credit
+                                                    )
+                                                )
+                                            )->gid,
+                                            name => $_->name,
+                                            number => $_->number,
+                                            artist_credit => $_->artist_credit
+                                        )
+                                    } @{ $_->{tracks} } ]
+                                )
+                                : load_tracklist($self->c, $_->{tracklist_id})
+                            );
+                    } grep { !$_->{deleted} } @{ $data->{mediums} }
+                ]
+            )
+        )
+    );
+};
+
 after 'prepare_tracklist' => sub {
     my ($self, $release) = @_;
 
@@ -334,32 +412,6 @@ augment 'load' => sub
 
     return $release;
 };
-
-# Approve edits edits that should never fail
-after create_edits => sub {
-    my ($self, %args) = @_;
-    my ($data, $create_edit, $editnote, $release, $previewing)
-        = @args{qw( data create_edit edit_note release previewing )};
-    return if $previewing;
-
-    my $c = $self->c->model('MB')->context;
-
-    $c->sql->begin;
-    my @edits = @{ $self->c->stash->{edits} };
-    for my $edit (@edits) {
-        if (should_approve($edit)) {
-            $c->model('Edit')->accept($edit);
-        }
-    }
-    $c->sql->commit;
-};
-
-sub should_approve {
-    my $edit = shift;
-    return unless $edit->is_open;
-    return $edit->meta->name eq 'MusicBrainz::Server::Edit::Medium::Create' ||
-           $edit->meta->name eq 'MusicBrainz::Server::Edit::Release::ReorderMediums';
-}
 
 __PACKAGE__->meta->make_immutable;
 1;

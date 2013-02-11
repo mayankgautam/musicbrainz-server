@@ -56,8 +56,8 @@ sub validate {
             }
         }
 
-        my %entities = $self->ctx->model(type_to_model($type))
-            ->find_by_names(map { $_->field('name')->input } @new_entities);
+        my %entities = {}; #$self->ctx->model(type_to_model($type))
+#            ->find_by_names(map { $_->field('name')->input } @new_entities);
 
         for my $field (@new_entities)
         {

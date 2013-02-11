@@ -15,7 +15,7 @@ with 'MusicBrainz::Server::Entity::Role::Rating';
 
 has 'primary_type_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'primary_type' => (

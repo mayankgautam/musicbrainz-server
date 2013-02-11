@@ -4,6 +4,11 @@ use Moose;
 
 with 'MusicBrainz::Server::Entity::Role::Editable';
 
+has 'id' => (
+    isa => 'Int',
+    is => 'ro',
+);
+
 has 'revision_id' => (
     isa => 'Int',
     is => 'ro',

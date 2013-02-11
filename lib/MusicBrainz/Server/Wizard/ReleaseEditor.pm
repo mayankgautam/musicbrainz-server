@@ -6,12 +6,14 @@ use MusicBrainz::Server::CGI::Expand qw( collapse_hash expand_hash );
 use Clone 'clone';
 use JSON::Any;
 use List::UtilsBy 'uniq_by';
+use MusicBrainz::Server::Constants qw( $AUTO_EDITOR_FLAG );
 use MusicBrainz::Server::Data::Search qw( escape_query );
 use MusicBrainz::Server::Data::Utils qw( artist_credit_to_ref hash_structure trim );
 use MusicBrainz::Server::Edit::Utils qw( clean_submitted_artist_credits );
+use MusicBrainz::Server::Entity::Tree::Artist;
+use MusicBrainz::Server::Entity::Tree::Label;
 use MusicBrainz::Server::Track qw( unformat_track_length format_track_length );
 use MusicBrainz::Server::Translation qw( l ln );
-use MusicBrainz::Server::Constants qw( $AUTO_EDITOR_FLAG );
 use MusicBrainz::Server::Validation qw( is_guid normalise_strings );
 use MusicBrainz::Server::Wizard;
 use Try::Tiny;
@@ -89,11 +91,13 @@ sub run
 {
     my $self = shift;
 
-    $self->process;
+    $self->c->model('MB')->with_nes_transaction(sub {
+        $self->process;
+        $self->prepare_edits if ($self->submitted)
+    });
 
-    if ($self->submitted)
-    {
-        $self->prepare_edits;
+    if ($self->submitted) {
+        $self->on_submit($self);
     }
 }
 
@@ -817,10 +821,10 @@ sub prepare_missing_entities
 
     $self->c->stash(
         missing_entity_count => scalar @credits + scalar @labels,
-        possible_artists => $self->c->model('Artist')->search_by_names (
-            map { $_->{for} } @credits),
-        possible_labels => $self->c->model('Label')->search_by_names (
-            map { $_->{for} } @labels),
+        possible_artists => [], # $self->c->model('Artist')->search_by_names (
+#            map { $_->{for} } @credits),
+        possible_labels => [] # $self->c->model('Label')->search_by_names (
+#            map { $_->{for} } @labels),
         );
 }
 
@@ -839,19 +843,21 @@ sub prepare_edits
 
     my $data = clone($self->value);
     my $editnote = $data->{edit_note};
+    if ($previewing) {
+        # my $data = clone($self->value);
+        # my $editnote = $data->{edit_note};
 
-    $self->release(
+        # $self->preview_edits(
+        #     data => $data,
+        #     create_edit => sub { $self->_preview_edit(@_) },
+        #     edit_note => $editnote,
+        #     previewing => $previewing
+        # );
+     } else {
         $self->create_edits(
             data => $data,
-            create_edit => $previewing
-                ? sub { $self->_preview_edit(@_) }
-                : sub { $self->_submit_edit(@_) },
             edit_note => $editnote,
-            previewing => $previewing
-        ));
-
-    if (!$previewing) {
-        $self->on_submit($self);
+        );
     }
 }
 
@@ -879,55 +885,126 @@ sub _missing_artist_credits
         ),
         (
             # Artist credits on new tracklists
-            grep { !$_->artist || !$_->artist->id }
+            grep { !$_->artist || !$_->artist->gid }
             map { @{ $_->artist_credit->names } }
             map { @{ $_->{tracks} } } grep { $_->{edits} }
             @{ $data->{mediums} }
         );
 }
 
-sub create_edits
-{
+sub create_edits {
     my ($self, %args) = @_;
-
-    my ($data, $create_edit, $editnote, $previewing)
-        = @args{qw( data create_edit edit_note previewing )};
+    my ($data, $edit_note) = @args{qw( data edit_note )};
 
     $data->{artist_credit} = clean_submitted_artist_credits($data->{artist_credit});
-
     $self->_expand_mediums($data);
 
-    $self->c->model('MB')->context->sql->begin unless $previewing;
+    my $edit = $self->c->model('NES::Edit')->open;
 
-    # Artists and labels:
-    # ----------------------------------------
-    my (%created) = $self->_edit_missing_entities(%args);
+    my %created = do {
+        my @missing_artists = @{ $data->{missing}{artist} || [] };
+        my @created_artists = map {
+            my $artist = $_;
+            $self->c->model('NES::Artist')->create(
+                $edit, $self->c->user,
+                MusicBrainz::Server::Entity::Tree::Artist->new(
+                    artist => MusicBrainz::Server::Entity::Artist->new(
+                        name => trim($artist->{name}),
+                        sort_name => trim($artist->{sort_name}),
+                        comment => trim($artist->{comment} // '')
+                    )
+                )
+            )
+        } grep { !$_->{entity_id} } @missing_artists;
 
-    unless ($previewing) {
-        for my $bad_ac ($self->_missing_artist_credits($data)) {
-            my $artist = $created{artist}{ normalise_strings($bad_ac->{artist}->{name}) }
-                or die 'No artist was created for ' . $bad_ac->{name};
+        my @missing_labels = @{ $data->{missing}{label} || [] };
+        my @created_labels = map {
+            my $label = $_;
+            $self->c->model('NES::Label')->create(
+                $edit, $self->c->user,
+                MusicBrainz::Server::Entity::Tree::Label->new(
+                    label => MusicBrainz::Server::Entity::Label->new(
+                        name => trim($label->{name}),
+                        sort_name => trim($label->{sort_name}),
+                        comment => trim($label->{comment} // '')
+                    )
+                )
+            )
+        } grep { !$_->{entity_id} } @missing_labels;
 
-            $bad_ac->{artist}->{id} = $artist;
-        }
+        (
+            artist => {
+                (map { normalise_strings($_->name) => $_->gid } @created_artists),
+                (map { normalise_strings($_->{for}) => $_->{entity_id} }
+                     grep { $_->{entity_id} } @missing_artists)
+            },
+            label => {
+                (map { normalise_strings($_->name) => $_->gid } @created_labels),
+                (map { normalise_strings($_->{for}) => $_->{entity_id} }
+                     grep { $_->{entity_id} } @missing_labels)
+            }
+        );
+    };
 
-        for my $bad_label ($self->_missing_labels($data)) {
-            my $label = $created{label}{ normalise_strings($bad_label->{name}) }
-                or die 'No label was created for ' . $bad_label->{name};
+    for my $bad_ac ($self->_missing_artist_credits($data)) {
+        my $artist = $created{artist}{ normalise_strings($bad_ac->{artist}->{name}) }
+            or die 'No artist was created for ' . $bad_ac->{name};
 
-            $bad_label->{label_id} = $label;
-        }
+        $bad_ac->{artist}->{gid} = $artist;
     }
 
-    $self->release(inner());
+    for my $bad_label ($self->_missing_labels($data)) {
+        my $label = $created{label}{ normalise_strings($bad_label->{name}) }
+            or die 'No label was created for ' . $bad_label->{name};
 
-    # Add any other extra edits (adding mediums, etc)
-    $self->create_common_edits(%args);
+        $bad_label->{label_id} = $label;
+    }
 
-    $self->c->model('MB')->context->sql->commit unless $previewing;
-
-    return $self->release;
+    $self->release($self->create_new_release_revision($edit, $data));
 }
+
+# sub preview_edits
+# {
+#     my ($self, %args) = @_;
+
+#     my ($data, $create_edit, $editnote, $previewing)
+#         = @args{qw( data create_edit edit_note previewing )};
+
+#     $data->{artist_credit} = clean_submitted_artist_credits($data->{artist_credit});
+
+#     $self->_expand_mediums($data);
+
+#     $self->c->model('MB')->context->sql->begin unless $previewing;
+
+#     # Artists and labels:
+#     # ----------------------------------------
+#     my (%created) = $self->_edit_missing_entities(%args);
+
+#     unless ($previewing) {
+#         for my $bad_ac ($self->_missing_artist_credits($data)) {
+#             my $artist = $created{artist}{ normalise_strings($bad_ac->{artist}->{name}) }
+#                 or die 'No artist was created for ' . $bad_ac->{name};
+
+#             $bad_ac->{artist}->{id} = $artist;
+#         }
+
+#         for my $bad_label ($self->_missing_labels($data)) {
+#             my $label = $created{label}{ normalise_strings($bad_label->{name}) }
+#                 or die 'No label was created for ' . $bad_label->{name};
+
+#             $bad_label->{label_id} = $label;
+#         }
+#     }
+
+#     $self->release(inner());
+
+#     # Add any other extra edits (adding mediums, etc)
+#     $self->create_common_edits(%args);
+
+#     $self->c->model('MB')->context->sql->commit unless $previewing;
+
+#     return $self->release;
+# }
 
 sub create_common_edits
 {
@@ -951,9 +1028,9 @@ sub create_common_edits
 
     $self->_edit_release_annotation(%args);
 
-    if ($previewing) {
-        $self->c->model ('Edit')->load_all (@{ $self->c->stash->{edits} });
-    }
+    # if ($previewing) {
+    #     $self->c->model ('Edit')->load_all (@{ $self->c->stash->{edits} });
+    # }
 }
 
 sub _edit_missing_entities
@@ -1154,66 +1231,38 @@ sub _edit_release_track_edits
         }
         elsif (!$new->{deleted})
         {
-            my $add_medium_position = $new->{position};
+            # if ($new->{tracks}) {
+            #     $self->c->model('Artist')->load_for_artist_credits (
+            #         map { $_->artist_credit } @{ $new->{tracks} });
+            #     $opts->{tracklist} = $new->{tracks};
+            # }
+            # elsif (my $tracklist_id = $new->{tracklist_id}) {
+            #     my $tracklist_entity = $self->c->model('Tracklist')->get_by_id($tracklist_id);
+            #     $self->c->model('Track')->load_for_tracklists($tracklist_entity);
+            #     $self->c->model('ArtistCredit')->load($tracklist_entity->all_tracks);
+            #     $self->c->model('Artist')->load_for_artist_credits (
+            #         map { $_->artist_credit } $tracklist_entity->all_tracks);
+            #     $opts->{tracklist} = $tracklist_entity->tracks;
+            # }
+            # else {
+            #     die "Medium data does not contain sufficient information to create a tracklist";
+            # }
 
-            my $opts = {
-                position => $add_medium_position,
-                release => $previewing ? undef : $self->release,
-                as_auto_editor => $data->{as_auto_editor},
-            };
+            # # Add medium
+            # my $add_medium = $create_edit->($EDIT_MEDIUM_CREATE, $editnote, %$opts);
 
-            $opts->{name} = trim ($new->{name}) if $new->{name};
-            $opts->{format_id} = $new->{format_id} if $new->{format_id};
-
-            if ($new->{tracks}) {
-                $self->c->model('Artist')->load_for_artist_credits (
-                    map { $_->artist_credit } @{ $new->{tracks} });
-                $opts->{tracklist} = $new->{tracks};
-            }
-            elsif (my $tracklist_id = $new->{tracklist_id}) {
-                my $tracklist_entity = $self->c->model('Tracklist')->get_by_id($tracklist_id);
-                $self->c->model('Track')->load_for_tracklists($tracklist_entity);
-                $self->c->model('ArtistCredit')->load($tracklist_entity->all_tracks);
-                $self->c->model('Artist')->load_for_artist_credits (
-                    map { $_->artist_credit } $tracklist_entity->all_tracks);
-                $opts->{tracklist} = $tracklist_entity->tracks;
-            }
-            else {
-                die "Medium data does not contain sufficient information to create a tracklist";
-            }
-
-            # Add medium
-            my $add_medium = $create_edit->($EDIT_MEDIUM_CREATE, $editnote, %$opts);
-
-            if ($new->{toc})
-            {
-                $create_edit->(
-                    $EDIT_MEDIUM_ADD_DISCID,
-                    $editnote,
-                    cdtoc => $new->{toc},
-                    release => $self->release,
-                    medium_id  => $previewing ? 0 : $add_medium->entity_id,
-                    as_auto_editor => $data->{as_auto_editor},
-                );
-            }
-
-            push @new_order, {
-                medium_id => $add_medium->entity_id,
-                old => $add_medium_position,
-                new => $new->{position},
-            };
-            $re_order ||= ($add_medium_position != $new->{position});
+            # if ($new->{toc})
+            # {
+            #     $create_edit->(
+            #         $EDIT_MEDIUM_ADD_DISCID,
+            #         $editnote,
+            #         cdtoc => $new->{toc},
+            #         release => $self->release,
+            #         medium_id  => $previewing ? 0 : $add_medium->entity_id,
+            #         as_auto_editor => $data->{as_auto_editor},
+            #     );
+            # }
         }
-    }
-
-    if ($re_order) {
-        $create_edit->(
-            $EDIT_RELEASE_REORDER_MEDIUMS,
-            $editnote,
-            release  => $self->release,
-            medium_positions => \@new_order,
-            as_auto_editor => $data->{as_auto_editor},
-        );
     }
 }
 

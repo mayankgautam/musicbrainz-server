@@ -30,7 +30,7 @@ around BUILDARGS => sub {
 
 has 'status_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'status' => (
@@ -52,7 +52,7 @@ sub l_status_name
 
 has 'packaging_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'packaging' => (
@@ -102,7 +102,7 @@ has 'barcode' => (
 
 has 'country_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'country' => (
@@ -119,7 +119,7 @@ has 'date' => (
 
 has 'language_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'language' => (
@@ -129,7 +129,7 @@ has 'language' => (
 
 has 'script_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'script' => (

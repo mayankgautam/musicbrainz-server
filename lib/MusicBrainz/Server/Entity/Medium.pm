@@ -38,7 +38,7 @@ has 'name' => (
 
 has 'format_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'format' => (

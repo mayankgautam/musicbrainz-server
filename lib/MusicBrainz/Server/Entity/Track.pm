@@ -6,10 +6,8 @@ use MusicBrainz::Server::Entity::Types;
 extends 'MusicBrainz::Server::Entity';
 with 'MusicBrainz::Server::Entity::Role::Editable';
 
-has 'recording_id' => (
+has 'recording_gid' => (
     is => 'rw',
-    isa => 'Int',
-    clearer => 'clear_recording_id'
 );
 
 has 'recording' => (

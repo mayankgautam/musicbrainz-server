@@ -3,7 +3,7 @@ use feature 'switch';
 use Moose;
 
 use DateTime::Format::ISO8601;
-use List::UtilsBy qw( partition_by );
+use MusicBrainz::Server::Data::NES::TreeMapping ':all';
 use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
 use MusicBrainz::Server::Entity::NES::Relationship;
 use MusicBrainz::Server::Entity::NES::Revision;
@@ -52,28 +52,9 @@ sub tree_to_json {
         iswcs => [
             map +{ iswc => $_->iswc }, @{ $tree->iswcs }
         ],
-        annotation => $tree->annotation,
-        aliases => [
-            map +{
-                name => $_->name,
-                'sort-name' => $_->sort_name,
-                'begin-date' => partial_date_to_hash($_->begin_date),
-                'end-date' => partial_date_to_hash($_->end_date),
-                ended => $_->ended,
-                'primary-for-locale' => boolean($_->primary_for_locale),
-                type => $_->type_id,
-                locale => $_->locale
-            }, @{ $tree->aliases }
-        ],
-        relationships => {
-            partition_by { $_->{target_type} }
-                map +{
-                    target => $_->target->gid,
-                    type => $_->link->type_id,
-                    target_type => $_->target_type,
-                    attributes => [ map { $_->id } $_->link->all_attributes ]
-                }, @{ $tree->relationships }
-        }
+        annotation_to_json($tree),
+        aliases_to_json($tree),
+        relationships_to_json($tree)
     );
 }
 
@@ -108,8 +89,8 @@ sub get_aliases {
                 sort_name => $_->{'sort-name'},
                 locale => $_->{locale},
                 type_id => $_->{type},
-                begin_date => MusicBrainz::Server::Entity::PartialDate->new($_->{begin_date}),
-                end_date => MusicBrainz::Server::Entity::PartialDate->new($_->{end_date}),
+                begin_date => MusicBrainz::Server::Entity::PartialDate->new($_->{'begin-date'}),
+                end_date => MusicBrainz::Server::Entity::PartialDate->new($_->{'end-date'}),
                 ended => $_->{ended},
                 primary_for_locale => $_->{'primary-for-locale'}
             )
