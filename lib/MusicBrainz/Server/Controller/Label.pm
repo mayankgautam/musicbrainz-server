@@ -12,21 +12,21 @@ use MusicBrainz::Server::Form::Label;
 use Sql;
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
-    model       => 'Label',
+    model       => 'NES::Label',
     entity_name => 'label',
 };
-with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
+
+# with 'MusicBrainz::Server::Controller::Role::LoadWithRowID'; NES
 with 'MusicBrainz::Server::Controller::Role::Annotation';
 with 'MusicBrainz::Server::Controller::Role::Alias';
 with 'MusicBrainz::Server::Controller::Role::Details';
 with 'MusicBrainz::Server::Controller::Role::EditListing';
-with 'MusicBrainz::Server::Controller::Role::IPI';
+# with 'MusicBrainz::Server::Controller::Role::IPI'; NES
 with 'MusicBrainz::Server::Controller::Role::Relationship';
 with 'MusicBrainz::Server::Controller::Role::Rating';
 with 'MusicBrainz::Server::Controller::Role::Tag';
 with 'MusicBrainz::Server::Controller::Role::Subscribe';
 with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
-
 
 =head1 NAME
 
@@ -50,24 +50,26 @@ sub base : Chained('/') PathPart('label') CaptureArgs(0) { }
 after 'load' => sub
 {
     my ($self, $c) = @_;
-
     my $label = $c->stash->{label};
-    if ($label->id == $DLABEL_ID)
-    {
-        $c->detach('/error_404');
-    }
+
+    # NES
+    # if ($label->id == $DLABEL_ID)
+    # {
+    #     $c->detach('/error_404');
+    # }
 
     my $label_model = $c->model('Label');
-    $label_model->load_meta($label);
+    # $label_model->load_meta($label); NES
     if ($c->user_exists) {
         $label_model->rating->load_user_ratings($c->user->id, $label);
 
-        $c->stash->{subscribed} = $label_model->subscription->check_subscription(
-            $c->user->id, $label->id);
+        # NES
+        # $c->stash->{subscribed} = $label_model->subscription->check_subscription(
+        #     $c->user->id, $label->id);
     }
 
     $c->model('LabelType')->load($label);
-    $c->model('Country')->load($c->stash->{label});
+    $c->model('Country')->load($label);
 };
 
 =head2 relations
@@ -78,8 +80,9 @@ Show all relations to this label
 
 sub relations : Chained('load')
 {
-    my ($self, $c) = @_;
-    $c->stash->{relations} = $c->model('Relation')->load_relations($self->entity);
+    # NES
+    # my ($self, $c) = @_;
+    # $c->stash->{relations} = $c->model('Relation')->load_relations($self->entity);
 }
 
 =head2 show
@@ -93,18 +96,19 @@ sub show : PathPart('') Chained('load')
 {
     my  ($self, $c) = @_;
 
-    my $releases = $self->_load_paged($c, sub {
-            $c->model('Release')->find_by_label($c->stash->{label}->id, shift, shift);
-        });
+    # NES
+    # my $releases = $self->_load_paged($c, sub {
+    #         $c->model('Release')->find_by_label($c->stash->{label}->id, shift, shift);
+    #     });
 
-    $c->model('ArtistCredit')->load(@$releases);
-    $c->model('Country')->load(@$releases);
-    $c->model('Medium')->load_for_releases(@$releases);
-    $c->model('MediumFormat')->load(map { $_->all_mediums } @$releases);
-    $c->model('ReleaseLabel')->load(@$releases);
+    # $c->model('ArtistCredit')->load(@$releases);
+    # $c->model('Country')->load(@$releases);
+    # $c->model('Medium')->load_for_releases(@$releases);
+    # $c->model('MediumFormat')->load(map { $_->all_mediums } @$releases);
+    # $c->model('ReleaseLabel')->load(@$releases);
     $c->stash(
         template => 'label/index.tt',
-        releases => $releases,
+        # releases => $releases,
     );
 }
 
@@ -135,8 +139,11 @@ with 'MusicBrainz::Server::Controller::Role::Edit' => {
     edit_type      => $EDIT_LABEL_EDIT,
 };
 
-with 'MusicBrainz::Server::Controller::Role::Delete' => {
-    edit_type      => $EDIT_LABEL_DELETE,
-};
+# NES
+# with 'MusicBrainz::Server::Controller::Role::Delete' => {
+#     edit_type      => $EDIT_LABEL_DELETE,
+# };
+
+sub delete : Chained('load') { }
 
 1;

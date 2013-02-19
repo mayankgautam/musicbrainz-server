@@ -5,10 +5,10 @@ use Moose;
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
 use MusicBrainz::Server::Entity::Recording;
 
-with 'MusicBrainz::Server::Data::Role::NES';
-with 'MusicBrainz::Server::Data::NES::CoreEntity' => {
+with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/recording'
 };
+with 'MusicBrainz::Server::Data::NES::CoreEntity';
 
 around create => sub {
     my ($orig, $self, $edit, $editor, $tree) = @_;

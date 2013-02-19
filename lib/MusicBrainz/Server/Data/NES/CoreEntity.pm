@@ -1,75 +1,66 @@
 package MusicBrainz::Server::Data::NES::CoreEntity;
-use MooseX::Role::Parameterized;
+use Moose::Role;
 
-parameter 'root' => (
-    isa => 'Str',
-    required => 1
-);
+requires 'tree_to_json', 'map_core_entity';
 
-role {
-    my $params = shift;
+sub create {
+    my ($self, $edit, $editor, $tree) = @_;
 
-    requires 'tree_to_json', 'map_core_entity';
+    my $response = $self->scoped_request('/create', {
+        edit => $edit->id,
+        editor => $editor->id,
+        $self->tree_to_json($tree)
+    });
 
-    method create => sub {
-        my ($self, $edit, $editor, $tree) = @_;
+    return $self->get_revision($response->{ref})
+}
 
-        my $response = $self->request($params->root . '/create', {
-            edit => $edit->id,
-            editor => $editor->id,
-            $self->tree_to_json($tree)
-        });
+sub update {
+    my ($self, $edit, $editor, $base_revision, $tree) = @_;
 
-        return $self->get_revision($response->{ref})
+    die 'Need a base revision' unless $base_revision;
+
+    my $final_tree = $tree->complete
+        ? $tree
+        : $self->view_tree($base_revision)->merge($tree);
+
+    my $response = $self->scoped_request('/update', {
+        edit => $edit->id,
+        editor => $editor->id,
+        revision => $base_revision->revision_id,
+        $self->tree_to_json($final_tree)
+    });
+
+    return undef;
+}
+
+sub get_revision {
+    my ($self, $revision_id) = @_;
+    return $self->_new_from_core_entity(
+        $self->scoped_request('/view-revision', { revision => $revision_id }));
+}
+
+sub get_by_gid {
+    my ($self, $gid) = @_;
+    return $self->_new_from_core_entity(
+        $self->scoped_request('/find-latest', { mbid => $gid }))
+}
+
+sub get_by_gids {
+    my ($self, @gids) = @_;
+    return {
+        map {
+            my $e = $self->get_by_gid($_);
+            $e->gid => $e
+        } @gids
     };
+}
 
-    method update => sub {
-        my ($self, $edit, $editor, $base_revision, $tree) = @_;
-
-        die 'Need a base revision' unless $base_revision;
-
-        my $final_tree = $tree->complete
-            ? $tree
-            : $self->view_tree($base_revision)->merge($tree);
-
-        my $response = $self->request($params->root . '/update', {
-            edit => $edit->id,
-            editor => $editor->id,
-            revision => $base_revision->revision_id,
-            $self->tree_to_json($final_tree)
-        });
-
-        return undef;
-    };
-
-    method get_revision => sub {
-        my ($self, $revision_id) = @_;
-        return $self->_new_from_core_entity(
-            $self->request($params->root . '/view-revision', { revision => $revision_id }));
-    };
-
-    method get_by_gid => sub {
-        my ($self, $gid) = @_;
-        return $self->_new_from_core_entity(
-            $self->request($params->root . '/find-latest', { mbid => $gid }))
-    };
-
-    method get_by_gids => sub {
-        my ($self, @gids) = @_;
-        return {
-            map {
-                my $e = $self->get_by_gid($_);
-                $e->gid => $e
-            } @gids
-        };
-    };
-
-    method _new_from_core_entity => sub {
-        my ($self, $response) = @_;
-        return keys %$response == 0
-            ? undef
-            : $self->map_core_entity($response);
-    };
-};
+sub _new_from_core_entity {
+    my ($self, $response) = @_;
+    return keys %$response == 0
+        ? undef
+        : $self->map_core_entity($response);
+}
 
 1;

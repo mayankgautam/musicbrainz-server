@@ -12,7 +12,9 @@ use MusicBrainz::Server::Data::Utils qw(
 
 extends 'MusicBrainz::Server::Data::Entity';
 
-with 'MusicBrainz::Server::Data::Role::NES';
+with 'MusicBrainz::Server::Data::Role::NES' => {
+    root => '/edit'
+};
 
 sub _table
 {
@@ -62,8 +64,8 @@ sub load_for_edits
 sub insert
 {
     my ($self, $edit_id, $note_hash) = @_;
-    $self->request(
-        '/edit/add-note', {
+    $self->scoped_request(
+        '/add-note', {
             edit => $edit_id,
             editor => $note_hash->{editor_id},
             text => $note_hash->{text}

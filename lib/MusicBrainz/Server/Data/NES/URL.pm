@@ -6,10 +6,10 @@ use Class::Load;
 use MusicBrainz::Server::Entity::Tree::URL;
 use MusicBrainz::Server::Entity::URL;
 
-with 'MusicBrainz::Server::Data::Role::NES';
-with 'MusicBrainz::Server::Data::NES::CoreEntity' => {
+with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/url'
 };
+with 'MusicBrainz::Server::Data::NES::CoreEntity';
 
 my %URL_SPECIALIZATIONS = (
     '45cat'           => qr{^https?://(?:www.)?45cat.com/}i,

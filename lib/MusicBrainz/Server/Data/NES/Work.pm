@@ -1,18 +1,22 @@
 package MusicBrainz::Server::Data::NES::Work;
-use feature 'switch';
 use Moose;
 
 use DateTime::Format::ISO8601;
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
-use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
+use MusicBrainz::Server::Data::Utils qw( object_to_revision_ids partial_date_to_hash );
 use MusicBrainz::Server::Entity::NES::Relationship;
 use MusicBrainz::Server::Entity::NES::Revision;
 use MusicBrainz::Server::Entity::Work;
 use MusicBrainz::Server::WebService::Serializer::JSON::2::Utils qw( boolean );
 
-with 'MusicBrainz::Server::Data::Role::NES';
-with 'MusicBrainz::Server::Data::NES::CoreEntity' => {
+with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/work'
+};
+with 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::NES::Role::Annotation';
+with 'MusicBrainz::Server::Data::NES::Role::Relationship';
+with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
+    model => 'Work'
 };
 
 around create => sub {
@@ -72,11 +76,6 @@ sub map_core_entity {
     );
 }
 
-sub tags {
-    my $self = shift;
-    $self->c->model('Work')->tags;
-}
-
 sub get_aliases {
     my ($self, $work) = @_;
     my $response = $self->request('/work/view-aliases', {
@@ -104,91 +103,12 @@ sub get_iswcs {
     return [];
 }
 
-sub get_annotation {
-    my ($self, $revision) = @_;
-    return $self->request(
-        '/work/view-annotation',
-        { revision => $revision->revision_id }
-    )->{annotation};
-}
-
-my %rel_type_to_model = (
-    work => 'NES::Work'
-);
-
-sub get_relationships {
-    my ($self, $revision) = @_;
-    my @rels =
-        map {
-            my $rel = $_;
-            my $target;
-            given ($rel->{'target-type'}) {
-                when (/url/) {
-                    $target = $self->c->model('NES::URL')->get_by_gid($rel->{target});
-                }
-
-                default {
-                    $target = $self->c->model(
-                        $rel_type_to_model{$_} // die 'Unknown relationship type'
-                    )->get_by_gid($rel->{target});
-                }
-            }
-
-            MusicBrainz::Server::Entity::NES::Relationship->new(
-                target => $target,
-                target_gid => $rel->{target},
-                link => MusicBrainz::Server::Entity::Link->new(
-                    type_id => $rel->{type},
-                    direction => $MusicBrainz::Server::Entity::NES::Relationship::DIRECTION_BACKWARD,
-                    attributes => [
-                        values %{ $self->c->model('LinkAttributeType')->get_by_ids(@{ $rel->{attributes} }) }
-                    ]
-                ),
-                target_type => $rel->{'target-type'},
-            );
-        } @{
-            $self->request(
-                '/work/view-relationships',
-                { revision => $revision->revision_id }
-            )
-        };
-
-    for my $attribute (map { $_->link->all_attributes } @rels) {
-        $attribute->root($self->c->model('LinkAttributeType')->get_by_id($attribute->root_id));
-    }
-
-    $self->c->model('LinkType')->load(map { $_->link } @rels);
-
-    return \@rels;
-}
-
-sub load_annotation {
-    my ($self, $work) = @_;
-    $work->latest_annotation(
-        MusicBrainz::Server::Entity::Annotation->new(
-            text => $self->get_annotation($work)));
-}
-
 sub is_empty {
     my ($self, $work) = @_;
     return $self->request(
         '/work/eligible-for-cleanup',
         { revision => $work->revision_id }
     )->{eligible};
-}
-
-sub load_relationships {
-    my ($self, @works) = @_;
-    for my $work (@works) {
-        $work->relationships($self->get_relationships($work));
-    }
-}
-
-sub load_iswcs {
-    my ($self, @revisions) = @_;
-    for my $revision (@revisions) {
-        $revision->iswcs($self->get_iswcs($revision));
-    }
 }
 
 sub merge {
@@ -222,6 +142,31 @@ sub load_revision {
         )
     );
 }
+
+sub load_iswcs {
+    my ($self, @works) = @_;
+    my %works_by_revision_id = object_to_revision_ids(@works);
+    my %iswc_map = %{
+        $self->request('/iswc/find-by-works', {
+            revisions => [
+                map +{ revision => $_->revision_id }, @works
+            ]
+        })
+    };
+
+    for my $key (keys %iswc_map) {
+        for my $work (@{ $works_by_revision_id{$key} }) {
+            $work->iswcs([
+                map {
+                    MusicBrainz::Server::Entity::ISWC->new( iswc => $_ )
+                  } @{ $iswc_map{$key} }
+            ]);
+        }
+    }
+
+    return;
+}
+
 
 __PACKAGE__->meta->make_immutable;
 1;

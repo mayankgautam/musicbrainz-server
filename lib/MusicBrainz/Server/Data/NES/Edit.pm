@@ -3,12 +3,14 @@ use Moose;
 
 use MusicBrainz::Server::Entity::NES::Edit;
 
-with 'MusicBrainz::Server::Data::Role::NES';
+with 'MusicBrainz::Server::Data::Role::NES' => {
+    root => '/edit'
+};
 
 sub open {
     my $self = shift;
     return MusicBrainz::Server::Entity::NES::Edit->new(
-        id => $self->request('/edit/open', {})->{ref}
+        id => $self->scoped_request('/open', {})->{ref}
     );
 }
 

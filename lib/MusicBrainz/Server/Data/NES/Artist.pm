@@ -7,10 +7,10 @@ use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
 use MusicBrainz::Server::Entity::Artist;
 use MusicBrainz::Server::Entity::PartialDate;
 
-with 'MusicBrainz::Server::Data::Role::NES';
-with 'MusicBrainz::Server::Data::NES::CoreEntity' => {
+with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/artist'
 };
+with 'MusicBrainz::Server::Data::NES::CoreEntity';
 
 around create => sub {
     my ($orig, $self, $edit, $editor, $tree) = @_;

@@ -38,7 +38,7 @@ after 'load' => sub
     $c->model('MB')->with_nes_transaction(sub {
         # $c->model('Work')->load_meta($work);
         $c->model('NES::Work')->load_revision($work);
-        $c->model('NES::ISWC')->load_for_works($work);
+        $c->model('NES::Work')->load_iswcs($work);
         if ($c->user_exists) {
             $c->model('Work')->rating->load_user_ratings($c->user->id, $work);
         }
