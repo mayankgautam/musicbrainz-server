@@ -12,6 +12,12 @@ with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/artist'
 };
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::NES::Role::Alias';
+with 'MusicBrainz::Server::Data::NES::Role::Annotation';
+with 'MusicBrainz::Server::Data::NES::Role::Relationship';
+with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
+    model => 'Artist'
+};
 
 sub tree_class { 'MusicBrainz::Server::Entity::Tree::Artist' }
 

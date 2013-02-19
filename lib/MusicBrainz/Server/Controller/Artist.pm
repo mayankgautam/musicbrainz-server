@@ -4,19 +4,19 @@ use Moose;
 BEGIN { extends 'MusicBrainz::Server::Controller'; }
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
-    model       => 'Artist',
+    model => 'NES::Artist',
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
 with 'MusicBrainz::Server::Controller::Role::Annotation';
 with 'MusicBrainz::Server::Controller::Role::Alias';
 with 'MusicBrainz::Server::Controller::Role::Details';
 with 'MusicBrainz::Server::Controller::Role::EditListing';
-with 'MusicBrainz::Server::Controller::Role::IPI';
+# with 'MusicBrainz::Server::Controller::Role::IPI'; NES
 with 'MusicBrainz::Server::Controller::Role::Relationship';
 with 'MusicBrainz::Server::Controller::Role::Rating';
 with 'MusicBrainz::Server::Controller::Role::Tag';
 with 'MusicBrainz::Server::Controller::Role::Subscribe';
-with 'MusicBrainz::Server::Controller::Role::Cleanup';
+# with 'MusicBrainz::Server::Controller::Role::Cleanup'; NES
 with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 
 use Data::Page;
@@ -87,30 +87,30 @@ after 'load' => sub
     my ($self, $c) = @_;
 
     my $artist = $c->stash->{artist};
-    if ($artist->id == $DARTIST_ID)
-    {
-        $c->detach('/error_404');
-    }
+    # if ($artist->id == $DARTIST_ID)
+    # {
+    #     $c->detach('/error_404');
+    # }
 
     my $artist_model = $c->model('Artist');
-    $artist_model->load_meta($artist);
-    if ($c->user_exists) {
-        $artist_model->rating->load_user_ratings($c->user->id, $artist);
+    # $artist_model->load_meta($artist);
+    # if ($c->user_exists) {
+    #     $artist_model->rating->load_user_ratings($c->user->id, $artist);
 
-        $c->stash->{subscribed} = $artist_model->subscription->check_subscription(
-            $c->user->id, $artist->id);
-    }
+    #     $c->stash->{subscribed} = $artist_model->subscription->check_subscription(
+    #         $c->user->id, $artist->id);
+    # }
 
     $c->model('ArtistType')->load($artist);
     $c->model('Gender')->load($artist);
     $c->model('Country')->load($artist);
 
-    $c->stash(
-        watching_artist =>
-            $c->user_exists && $c->model('WatchArtist')->is_watching(
-                editor_id => $c->user->id, artist_id => $artist->id
-            )
-    );
+    # $c->stash(
+    #     watching_artist =>
+    #         $c->user_exists && $c->model('WatchArtist')->is_watching(
+    #             editor_id => $c->user->id, artist_id => $artist->id
+    #         )
+    # );
 };
 
 after 'aliases' => sub
@@ -179,66 +179,66 @@ sub show : PathPart('') Chained('load')
 {
     my ($self, $c) = @_;
 
-    my $artist = $c->stash->{artist};
-    my $release_groups;
-    if ($c->stash->{artist}->id == $VARTIST_ID)
-    {
-        my $index = $c->req->query_params->{index};
-        if ($index) {
-            $release_groups = $self->_load_paged($c, sub {
-                $c->model('ReleaseGroup')->find_by_name_prefix_va($index, shift,
-                                                                  shift);
-            });
-        }
+    # my $artist = $c->stash->{artist};
+    # my $release_groups;
+    # if ($c->stash->{artist}->id == $VARTIST_ID)
+    # {
+    #     my $index = $c->req->query_params->{index};
+    #     if ($index) {
+    #         $release_groups = $self->_load_paged($c, sub {
+    #             $c->model('ReleaseGroup')->find_by_name_prefix_va($index, shift,
+    #                                                               shift);
+    #         });
+    #     }
+    #     $c->stash(
+    #         template => 'artist/browse_various.tt',
+    #         index    => $index,
+    #     );
+    # }
+    # else
+    # {
+    #     my %filter = %{ $self->process_filter($c, sub {
+    #         return create_artist_release_groups_form($c, $artist->id);
+    #     }) };
+
+    #     my $method = 'find_by_artist';
+    #     my $show_va = $c->req->query_params->{va};
+    #     if ($show_va) {
+    #         $method = 'find_by_track_artist';
+    #     }
+
+    #     $release_groups = $self->_load_paged($c, sub {
+    #             $c->model('ReleaseGroup')->$method($c->stash->{artist}->id, shift, shift, filter => \%filter);
+    #         });
+
+    #     my $pager = $c->stash->{pager};
+    #     if (!$show_va && !%filter && $pager->total_entries == 0) {
+    #         $release_groups = $self->_load_paged($c, sub {
+    #                 $c->model('ReleaseGroup')->find_by_track_artist($c->stash->{artist}->id, shift, shift, filter => \%filter);
+    #             });
+    #         $c->stash(
+    #             va_only => 1
+    #         );
+    #     }
+
         $c->stash(
-            template => 'artist/browse_various.tt',
-            index    => $index,
-        );
-    }
-    else
-    {
-        my %filter = %{ $self->process_filter($c, sub {
-            return create_artist_release_groups_form($c, $artist->id);
-        }) };
-
-        my $method = 'find_by_artist';
-        my $show_va = $c->req->query_params->{va};
-        if ($show_va) {
-            $method = 'find_by_track_artist';
-        }
-
-        $release_groups = $self->_load_paged($c, sub {
-                $c->model('ReleaseGroup')->$method($c->stash->{artist}->id, shift, shift, filter => \%filter);
-            });
-
-        my $pager = $c->stash->{pager};
-        if (!$show_va && !%filter && $pager->total_entries == 0) {
-            $release_groups = $self->_load_paged($c, sub {
-                    $c->model('ReleaseGroup')->find_by_track_artist($c->stash->{artist}->id, shift, shift, filter => \%filter);
-                });
-            $c->stash(
-                va_only => 1
-            );
-        }
-
-        $c->stash(
-            show_va => $show_va,
+            # show_va => $show_va,
             template => 'artist/index.tt'
         );
-    }
+    # }
 
-    if ($c->user_exists) {
-        $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, @$release_groups);
-    }
+    # if ($c->user_exists) {
+    #     $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, @$release_groups);
+    # }
 
-    $c->model('ArtistCredit')->load(@$release_groups);
-    $c->model('ReleaseGroupType')->load(@$release_groups);
-    $c->stash(
-        release_groups => $release_groups,
-        show_artists => scalar grep {
-            $_->artist_credit->name ne $artist->name
-        } @$release_groups,
-    );
+    # $c->model('ArtistCredit')->load(@$release_groups);
+    # $c->model('ReleaseGroupType')->load(@$release_groups);
+    # $c->stash(
+    #     release_groups => $release_groups,
+    #     show_artists => scalar grep {
+    #         $_->artist_credit->name ne $artist->name
+    #     } @$release_groups,
+    # );
 }
 
 =head2 works
@@ -419,12 +419,9 @@ is done via L<MusicBrainz::Server::Form::Artist>
 
 =cut
 
-# with 'MusicBrainz::Server::Controller::Role::Create' => {
-#     form      => 'Artist',
-#     edit_type => $EDIT_ARTIST_CREATE,
-# };
-
-sub create : Local { }
+with 'MusicBrainz::Server::Controller::Role::Create' => {
+    form => 'Artist',
+};
 
 =head2 edit
 
@@ -724,6 +721,13 @@ sub process_filter
     }
 
     return \%filter;
+}
+
+sub tree {
+    my ($self, $values) = @_;
+    return MusicBrainz::Server::Entity::Tree::Artist->new(
+        artist => MusicBrainz::Server::Entity::Artist->new($values)
+    );
 }
 
 =head1 LICENSE
