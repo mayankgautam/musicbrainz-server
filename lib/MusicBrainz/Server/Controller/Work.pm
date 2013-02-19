@@ -68,16 +68,6 @@ for my $action (qw( relationships aliases tags details )) {
     };
 }
 
-sub edit : Chained('load') {
-    my ($self, $c) = @_;
-
-    create_update(
-        $self, $c,
-        form => 'Work::Edit',
-        subject => $c->stash->{work},
-        build_tree => \&work_tree
-    );
-}
 
 sub work_tree {
     my $values = shift;
@@ -98,6 +88,11 @@ sub tree {
 with 'MusicBrainz::Server::Controller::Role::Merge' => {
     confirmation_template => 'work/merge_confirm.tt',
     search_template       => 'work/merge_search.tt',
+};
+
+with 'MusicBrainz::Server::Controller::Role::Edit' => {
+    form => 'Work',
+    model => 'NES::Work'
 };
 
 before 'edit' => sub
@@ -124,8 +119,7 @@ after 'merge' => sub
 };
 
 with 'MusicBrainz::Server::Controller::Role::Create' => {
-    form => 'Work',
-    model => 'NES::Work'
+    form => 'Work'
 };
 
 1;

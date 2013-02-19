@@ -149,10 +149,13 @@ Edit recording details (sequence number, recording time and title)
 
 =cut
 
-with 'MusicBrainz::Server::Controller::Role::Edit' => {
-    form           => 'Recording',
-    edit_type      => $EDIT_RECORDING_EDIT,
-};
+# NES
+# with 'MusicBrainz::Server::Controller::Role::Edit' => {
+#     form           => 'Recording',
+#     edit_type      => $EDIT_RECORDING_EDIT,
+# };
+
+sub edit : Chained('load') { }
 
 with 'MusicBrainz::Server::Controller::Role::Merge' => {
     edit_type => $EDIT_RECORDING_MERGE,

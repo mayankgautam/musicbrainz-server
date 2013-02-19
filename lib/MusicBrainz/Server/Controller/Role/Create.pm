@@ -8,11 +8,6 @@ parameter 'form' => (
     required => 1
 );
 
-parameter 'model' => (
-    isa => 'Str',
-    required => 1
-);
-
 role {
     my $params = shift;
     my %extra = @_;
@@ -40,7 +35,7 @@ role {
             on_post => sub {
                 my ($values, $edit) = @_;
 
-                return $c->model($params->model)->create(
+                return $c->model($self->{model})->create(
                     $edit, $c->user,
                     $self->tree($values)
                 );

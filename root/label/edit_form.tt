@@ -4,6 +4,7 @@
 [% END %]
 <form action="[% c.req.uri %]" method="post" class="edit-label">
     [%- USE r = FormRenderer(form) -%]
+    [% r.hidden(form.field('revision_id')) IF label.revision_id %]
 
     <div class="half-width">
 

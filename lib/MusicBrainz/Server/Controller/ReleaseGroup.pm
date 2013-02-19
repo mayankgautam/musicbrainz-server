@@ -98,10 +98,13 @@ with 'MusicBrainz::Server::Controller::Role::Delete' => {
 
 sub create : Local { }
 
-with 'MusicBrainz::Server::Controller::Role::Edit' => {
-    form           => 'ReleaseGroup',
-    edit_type      => $EDIT_RELEASEGROUP_EDIT,
-};
+# NES
+# with 'MusicBrainz::Server::Controller::Role::Edit' => {
+#     form           => 'ReleaseGroup',
+#     edit_type      => $EDIT_RELEASEGROUP_EDIT,
+# };
+
+sub edit : Chained('load') { }
 
 with 'MusicBrainz::Server::Controller::Role::Merge' => {
     edit_type => $EDIT_RELEASEGROUP_MERGE,

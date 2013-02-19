@@ -44,10 +44,13 @@ Edit the details of an already existing link
 
 =cut
 
-with 'MusicBrainz::Server::Controller::Role::Edit' => {
-    form      => 'URL',
-    edit_type => $EDIT_URL_EDIT,
-};
+# NES
+# with 'MusicBrainz::Server::Controller::Role::Edit' => {
+#     form      => 'URL',
+#     edit_type => $EDIT_URL_EDIT,
+# };
+
+sub edit : Chained('load') { }
 
 =head1 LICENSE
 

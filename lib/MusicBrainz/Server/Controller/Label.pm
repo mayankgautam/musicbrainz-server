@@ -139,8 +139,7 @@ sub tree {
 }
 
 with 'MusicBrainz::Server::Controller::Role::Edit' => {
-    form           => 'Label',
-    edit_type      => $EDIT_LABEL_EDIT,
+    form => 'Label::Edit',
 };
 
 # NES
