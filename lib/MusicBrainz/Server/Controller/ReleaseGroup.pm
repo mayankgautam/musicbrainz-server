@@ -76,25 +76,27 @@ with 'MusicBrainz::Server::Controller::Role::Delete' => {
     edit_type      => $EDIT_RELEASEGROUP_DELETE,
 };
 
-with 'MusicBrainz::Server::Controller::Role::Create' => {
-    path           => '/release-group/create',
-    form           => 'ReleaseGroup',
-    edit_type      => $EDIT_RELEASEGROUP_CREATE,
-    edit_arguments => sub {
-        my ($self, $c) = @_;
-        my $artist_gid = $c->req->query_params->{artist};
-        if ( my $artist = $c->model('Artist')->get_by_gid($artist_gid) ) {
-            my $rg = MusicBrainz::Server::Entity::ReleaseGroup->new(
-                artist_credit => ArtistCredit->from_artist($artist)
-            );
-            $c->stash( initial_artist => $artist );
-            return ( item => $rg );
-        }
-        else {
-            return ();
-        }
-    }
-};
+# with 'MusicBrainz::Server::Controller::Role::Create' => {
+#     path           => '/release-group/create',
+#     form           => 'ReleaseGroup',
+#     edit_type      => $EDIT_RELEASEGROUP_CREATE,
+#     edit_arguments => sub {
+#         my ($self, $c) = @_;
+#         my $artist_gid = $c->req->query_params->{artist};
+#         if ( my $artist = $c->model('Artist')->get_by_gid($artist_gid) ) {
+#             my $rg = MusicBrainz::Server::Entity::ReleaseGroup->new(
+#                 artist_credit => ArtistCredit->from_artist($artist)
+#             );
+#             $c->stash( initial_artist => $artist );
+#             return ( item => $rg );
+#         }
+#         else {
+#             return ();
+#         }
+#     }
+# };
+
+sub create : Local { }
 
 with 'MusicBrainz::Server::Controller::Role::Edit' => {
     form           => 'ReleaseGroup',

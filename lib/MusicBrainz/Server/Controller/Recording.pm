@@ -160,35 +160,37 @@ with 'MusicBrainz::Server::Controller::Role::Merge' => {
     confirmation_template => 'recording/merge_confirm.tt'
 };
 
-with 'MusicBrainz::Server::Controller::Role::Create' => {
-    form      => 'Recording::Standalone',
-    edit_type => $EDIT_RECORDING_CREATE,
-    edit_arguments => sub {
-        my ($self, $c) = @_;
-        my $artist_gid = $c->req->query_params->{artist};
-        if ( my $artist = $c->model('Artist')->get_by_gid($artist_gid) ) {
-            my $rg = MusicBrainz::Server::Entity::Recording->new(
-                artist_credit => ArtistCredit->from_artist($artist)
-            );
-            $c->stash( initial_artist => $artist );
-            return ( item => $rg );
-        }
-        else {
-            return ();
-        }
-    }
-};
+# with 'MusicBrainz::Server::Controller::Role::Create' => {
+#     form      => 'Recording::Standalone',
+#     edit_type => $EDIT_RECORDING_CREATE,
+#     edit_arguments => sub {
+#         my ($self, $c) = @_;
+#         my $artist_gid = $c->req->query_params->{artist};
+#         if ( my $artist = $c->model('Artist')->get_by_gid($artist_gid) ) {
+#             my $rg = MusicBrainz::Server::Entity::Recording->new(
+#                 artist_credit => ArtistCredit->from_artist($artist)
+#             );
+#             $c->stash( initial_artist => $artist );
+#             return ( item => $rg );
+#         }
+#         else {
+#             return ();
+#         }
+#     }
+# };
 
-around create => sub {
-    my ($orig, $self, $c, @args) = @_;
-    if ($c->user_exists && $c->user->is_limited) {
-        $c->stash( template => 'recording/cannot_add.tt' );
-        $c->detach;
-    }
-    else {
-        $self->$orig($c, @args);
-    }
-};
+# around create => sub {
+#     my ($orig, $self, $c, @args) = @_;
+#     if ($c->user_exists && $c->user->is_limited) {
+#         $c->stash( template => 'recording/cannot_add.tt' );
+#         $c->detach;
+#     }
+#     else {
+#         $self->$orig($c, @args);
+#     }
+# };
+
+sub create : Local { }
 
 before '_merge_confirm' => sub {
     my ($self, $c) = @_;

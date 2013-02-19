@@ -419,10 +419,12 @@ is done via L<MusicBrainz::Server::Form::Artist>
 
 =cut
 
-with 'MusicBrainz::Server::Controller::Role::Create' => {
-    form      => 'Artist',
-    edit_type => $EDIT_ARTIST_CREATE,
-};
+# with 'MusicBrainz::Server::Controller::Role::Create' => {
+#     form      => 'Artist',
+#     edit_type => $EDIT_ARTIST_CREATE,
+# };
+
+sub create : Local { }
 
 =head2 edit
 

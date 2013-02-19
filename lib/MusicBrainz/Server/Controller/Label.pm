@@ -3,6 +3,14 @@ use Moose;
 
 BEGIN { extends 'MusicBrainz::Server::Controller'; }
 
+use Data::Page;
+use MusicBrainz::Server::Constants qw( $DLABEL_ID $EDIT_LABEL_DELETE $EDIT_LABEL_EDIT $EDIT_LABEL_MERGE );
+use MusicBrainz::Server::Entity::Label;
+use MusicBrainz::Server::Entity::Tree::Label;
+use MusicBrainz::Server::Form::Confirm;
+use MusicBrainz::Server::Form::Label;
+use Sql;
+
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model       => 'Label',
     entity_name => 'label',
@@ -19,12 +27,6 @@ with 'MusicBrainz::Server::Controller::Role::Tag';
 with 'MusicBrainz::Server::Controller::Role::Subscribe';
 with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 
-use MusicBrainz::Server::Constants qw( $DLABEL_ID $EDIT_LABEL_CREATE $EDIT_LABEL_DELETE $EDIT_LABEL_EDIT $EDIT_LABEL_MERGE );
-use Data::Page;
-
-use MusicBrainz::Server::Form::Confirm;
-use MusicBrainz::Server::Form::Label;
-use Sql;
 
 =head1 NAME
 
@@ -117,9 +119,16 @@ with 'MusicBrainz::Server::Controller::Role::Merge' => {
 };
 
 with 'MusicBrainz::Server::Controller::Role::Create' => {
-    form      => 'Label',
-    edit_type => $EDIT_LABEL_CREATE,
+    form => 'Label',
+    model => 'NES::Label'
 };
+
+sub tree {
+    my ($self, $values) = @_;
+    return MusicBrainz::Server::Entity::Tree::Label->new(
+        label => MusicBrainz::Server::Entity::Label->new($values)
+    );
+}
 
 with 'MusicBrainz::Server::Controller::Role::Edit' => {
     form           => 'Label',

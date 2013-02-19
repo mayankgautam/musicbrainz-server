@@ -3,7 +3,7 @@ use HTML::FormHandler::Moose;
 extends 'MusicBrainz::Server::Form';
 
 with 'MusicBrainz::Server::Form::Role::Edit';
-with 'MusicBrainz::Server::Form::Role::CheckDuplicates';
+# with 'MusicBrainz::Server::Form::Role::CheckDuplicates';
 with 'MusicBrainz::Server::Form::Role::IPI';
 
 has '+name' => ( default => 'edit-label' );

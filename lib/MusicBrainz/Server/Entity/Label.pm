@@ -20,7 +20,7 @@ has 'sort_name' => (
 
 has 'type_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'type' => (
@@ -42,7 +42,7 @@ sub l_type_name
 
 has 'label_code' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 sub format_label_code
@@ -56,7 +56,7 @@ sub format_label_code
 
 has 'country_id' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Maybe[Int]'
 );
 
 has 'country' => (

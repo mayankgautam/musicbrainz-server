@@ -90,6 +90,11 @@ sub work_tree {
     );
 }
 
+sub tree {
+    my (undef, $values) = @_;
+    return work_tree($values);
+}
+
 with 'MusicBrainz::Server::Controller::Role::Merge' => {
     confirmation_template => 'work/merge_confirm.tt',
     search_template       => 'work/merge_search.tt',
@@ -118,22 +123,10 @@ after 'merge' => sub
     });
 };
 
-sub create : Local Edit {
-    my ($self, $c) = @_;
-
-    create_edit(
-        $self, $c,
-        form => 'Work',
-        on_post => sub {
-            my ($values, $edit) = @_;
-
-            return $c->model('NES::Work')->create(
-                $edit, $c->user,
-                work_tree($values)
-            );
-        }
-    );
-}
+with 'MusicBrainz::Server::Controller::Role::Create' => {
+    form => 'Work',
+    model => 'NES::Work'
+};
 
 1;
 
