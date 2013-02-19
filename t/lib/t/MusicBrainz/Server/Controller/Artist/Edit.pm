@@ -236,4 +236,33 @@ EOSQL
     });
 };
 
+test 'Edits which cause exceptions should be rejected immediatly (MBS-5855)' => sub {
+
+    my $test = shift;
+    my $mech = $test->mech;
+    my $c    = $test->c;
+
+    MusicBrainz::Server::Test->prepare_test_database($c, '+controller_artist');
+    $c->sql->do(
+        "INSERT INTO artist (id, gid, name, sort_name, comment) VALUES ".
+        "(5, '0c291488-0840-45bf-9de0-504c5d17e3e4', 3, 3, 'disambiguate');"
+        );
+
+    # Test editing artists
+    $mech->get_ok('/login');
+    $mech->submit_form( with_fields => { username => 'new_editor', password => 'password' } );
+
+    $mech->get_ok('/artist/60e5d080-c964-11de-8a39-0800200c9a66/edit');
+    html_ok($mech->content);
+    $mech->submit_form_ok({
+        with_fields => {
+            'edit-artist.name' => 'Empty Artist',
+            'edit-artist.sort_name' => 'Empty Artist',
+            'edit-artist.comment' => 'disambiguate',
+        }
+    });
+    ok($mech->uri =~ qr{/artist/60e5d080-c964-11de-8a39-0800200c9a66/edit$}, 'still on the edit page');
+    $mech->content_contains('FIXME: add expected text', 'warning about the conflict');
+};
+
 1;
