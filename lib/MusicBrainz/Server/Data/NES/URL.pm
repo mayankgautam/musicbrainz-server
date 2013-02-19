@@ -103,4 +103,13 @@ sub map_core_entity {
     );
 }
 
+sub view_tree {
+    my ($self, $revision) = @_;
+
+    return MusicBrainz::Server::Entity::Tree::URL->new(
+        url => $revision,
+        relationships => $self->get_relationships($revision)
+    );
+}
+
 1;

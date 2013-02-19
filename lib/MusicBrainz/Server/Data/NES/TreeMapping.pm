@@ -3,6 +3,8 @@ use strict;
 use warnings;
 
 use List::UtilsBy qw( partition_by );
+use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
+use MusicBrainz::Server::WebService::Serializer::JSON::2::Utils qw( boolean );
 use Sub::Exporter -setup => {
     exports => [qw(
         aliases_to_json

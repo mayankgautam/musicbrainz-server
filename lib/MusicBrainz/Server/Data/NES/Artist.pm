@@ -65,5 +65,16 @@ sub tree_to_json {
     );
 }
 
+sub view_tree {
+    my ($self, $revision) = @_;
+
+    return MusicBrainz::Server::Entity::Tree::Artist->new(
+        artist => $revision,
+        annotation => $self->get_annotation($revision),
+        aliases => $self->get_aliases($revision),
+        relationships => $self->get_relationships($revision)
+    );
+}
+
 __PACKAGE__->meta->make_immutable;
 1;

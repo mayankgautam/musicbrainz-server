@@ -11,6 +11,10 @@ use MusicBrainz::Server::Form::Confirm;
 use MusicBrainz::Server::Form::Label;
 use Sql;
 
+__PACKAGE__->config(
+    tree_entity => 'MusicBrainz::Server::Entity::Tree::Label',
+);
+
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model       => 'NES::Label',
     entity_name => 'label',

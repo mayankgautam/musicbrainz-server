@@ -11,6 +11,7 @@ with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/label'
 };
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::NES::Role::Alias';
 with 'MusicBrainz::Server::Data::NES::Role::Annotation';
 with 'MusicBrainz::Server::Data::NES::Role::Relationship';
 with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
@@ -67,6 +68,17 @@ sub tree_to_json {
         annotation_to_json($tree),
         aliases_to_json($tree),
         relationships_to_json($tree)
+    );
+}
+
+sub view_tree {
+    my ($self, $revision) = @_;
+
+    return MusicBrainz::Server::Entity::Tree::Label->new(
+        label => $revision,
+        annotation => $self->get_annotation($revision),
+        aliases => $self->get_aliases($revision),
+        relationships => $self->get_relationships($revision)
     );
 }
 

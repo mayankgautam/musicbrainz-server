@@ -7,14 +7,16 @@ use MusicBrainz::Server::Entity::Alias;
 use MusicBrainz::Server::NES::Controller::Utils qw( create_update );
 
 my %model_to_search_hint_type_id = (
-    Artist => 3,
-    Label => 2,
+    'NES::Artist' => 3,
+    'NES::Label' => 2,
     'NES::Work' => 2
 );
 
 sub alias_type_model {
     my ($c, $parent) = @_;
     my %type_model = (
+        'NES::Artist' => 'Artist',
+        'NES::Label' => 'Label',
         'NES::Work' => 'Work'
     );
     return $c->model($type_model{$parent})->alias_type;

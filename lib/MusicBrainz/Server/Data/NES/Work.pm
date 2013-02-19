@@ -3,16 +3,16 @@ use Moose;
 
 use DateTime::Format::ISO8601;
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
-use MusicBrainz::Server::Data::Utils qw( object_to_revision_ids partial_date_to_hash );
+use MusicBrainz::Server::Data::Utils qw( object_to_revision_ids );
 use MusicBrainz::Server::Entity::NES::Relationship;
 use MusicBrainz::Server::Entity::NES::Revision;
 use MusicBrainz::Server::Entity::Work;
-use MusicBrainz::Server::WebService::Serializer::JSON::2::Utils qw( boolean );
 
 with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/work'
 };
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::NES::Role::Alias';
 with 'MusicBrainz::Server::Data::NES::Role::Annotation';
 with 'MusicBrainz::Server::Data::NES::Role::Relationship';
 with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
@@ -36,7 +36,8 @@ sub view_tree {
         work => $revision,
         iswcs => $self->get_iswcs($revision),
         annotation => $self->get_annotation($revision),
-        aliases => $self->get_aliases($revision)
+        aliases => $self->get_aliases($revision),
+        relationships => $self->get_relationships($revision)
     );
 }
 
@@ -74,27 +75,6 @@ sub map_core_entity {
         gid => $response->{mbid},
         revision_id => $response->{revision}
     );
-}
-
-sub get_aliases {
-    my ($self, $work) = @_;
-    my $response = $self->request('/work/view-aliases', {
-        revision => $work->revision_id
-    });
-    return [
-        map {
-            MusicBrainz::Server::Entity::Alias->new(
-                name => $_->{name},
-                sort_name => $_->{'sort-name'},
-                locale => $_->{locale},
-                type_id => $_->{type},
-                begin_date => MusicBrainz::Server::Entity::PartialDate->new($_->{'begin-date'}),
-                end_date => MusicBrainz::Server::Entity::PartialDate->new($_->{'end-date'}),
-                ended => $_->{ended},
-                primary_for_locale => $_->{'primary-for-locale'}
-            )
-        } @$response
-    ]
 }
 
 sub get_iswcs {
