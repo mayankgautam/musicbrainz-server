@@ -55,15 +55,15 @@ our @EXPORT_OK = qw(
 
 Readonly my %TYPE_TO_MODEL => (
     'annotation'    => 'Annotation',
-    'artist'        => 'Artist',
+    'artist'        => 'NES::Artist',
     'cdstub'        => 'CDStub',
     'editor'        => 'Editor',
     'freedb'        => 'FreeDB',
-    'label'         => 'Label',
-    'recording'     => 'Recording',
-    'release'       => 'Release',
-    'release_group' => 'ReleaseGroup',
-    'url'           => 'URL',
+    'label'         => 'NES::Label',
+    'recording'     => 'NES::Recording',
+    'release'       => 'NES::Release',
+    'release_group' => 'NES::ReleaseGroup',
+    'url'           => 'NES::URL',
     'work'          => 'NES::Work',
 );
 

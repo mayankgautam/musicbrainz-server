@@ -9,7 +9,9 @@ sub relationships : Chained('load') PathPart('relationships')
 {
     my ($self, $c) = @_;
     my $entity = $c->stash->{$self->{entity_name}};
-    $c->model('Relationship')->load($entity);
+    $c->model('MB')->with_nes_transaction(sub {
+        $c->model($self->{model})->load_relationships($entity);
+    });
 }
 
 sub relate : Chained('load')

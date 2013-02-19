@@ -1,10 +1,15 @@
 package MusicBrainz::Server::Data::NES::Role::Relationship;
-use feature 'switch';
 use Moose::Role;
 
 requires 'scoped_request';
 
 my %rel_type_to_model = (
+    artist => 'NES::Artist',
+    label => 'NES::Label',
+    recording => 'NES::Recording',
+    release => 'NES::Release',
+    releaseGroup => 'NES::ReleaseGroup',
+    url => 'NES::URL',
     work => 'NES::Work'
 );
 
@@ -13,18 +18,10 @@ sub get_relationships {
     my @rels =
         map {
             my $rel = $_;
-            my $target;
-            given ($rel->{'target-type'}) {
-                when (/url/) {
-                    $target = $self->c->model('NES::URL')->get_by_gid($rel->{target});
-                }
-
-                default {
-                    $target = $self->c->model(
-                        $rel_type_to_model{$_} // die 'Unknown relationship type'
-                    )->get_by_gid($rel->{target});
-                }
-            }
+            my $target_type = $rel->{'target-type'};
+            my $target = $self->c->model(
+                $rel_type_to_model{$target_type} // die "Unknown relationship type: $target_type"
+            )->get_by_gid($rel->{target});
 
             MusicBrainz::Server::Entity::NES::Relationship->new(
                 target => $target,
@@ -55,10 +52,12 @@ sub get_relationships {
 }
 
 sub load_relationships {
-    my ($self, @works) = @_;
-    for my $work (@works) {
-        $work->relationships($self->get_relationships($work));
+    my ($self, @entities) = @_;
+    for my $entity (@entities) {
+        $entity->relationships($self->get_relationships($entity));
     }
+
+    use Devel::Dwarn; Dwarn \@entities;
 }
 
 1;

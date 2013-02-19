@@ -1,7 +1,7 @@
 package MusicBrainz::Server::Data::NES::CoreEntity;
 use Moose::Role;
 
-requires 'tree_to_json', 'map_core_entity', 'view_tree';
+requires 'tree_to_json', 'map_core_entity', 'view_tree', 'tree_class';
 
 sub create {
     my ($self, $edit, $editor, $tree) = @_;

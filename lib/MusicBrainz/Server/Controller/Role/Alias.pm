@@ -69,8 +69,9 @@ sub add_alias : Chained('load') PathPart('add-alias') RequireAuth Edit
         build_tree => sub {
             my ($values, $revision) = @_;
 
-            my $aliases = $c->model($self->{model})->get_aliases($revision);
-            $self->{tree_entity}->new(
+            my $m = $c->model($self->{model});
+            my $aliases = $m->get_aliases($revision);
+            $m->tree_class->new(
                 aliases => [
                     @$aliases,
                     MusicBrainz::Server::Entity::Alias->new($values)
@@ -96,7 +97,7 @@ sub delete_alias : Chained('alias') PathPart('delete') RequireAuth Edit
         build_tree => sub {
             my ($values, $revision) = @_;
 
-            return $self->{tree_entity}->new(
+            return $c->model($self->{model})->tree_class->new(
                 aliases => [ _aliases_without($c->stash->{all_aliases}, $alias) ]
             );
         }
@@ -118,7 +119,7 @@ sub edit_alias : Chained('alias') PathPart('edit') RequireAuth Edit
         build_tree => sub {
             my ($values, $revision) = @_;
 
-            return $self->{tree_entity}->new(
+            return $c->model($self->{model})->tree_class->new(
                 aliases => [
                     _aliases_without($c->stash->{all_aliases}, $alias),
                     MusicBrainz::Server::Entity::Alias->new($values),

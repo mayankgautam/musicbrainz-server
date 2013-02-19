@@ -6,11 +6,14 @@ use MusicBrainz::Server::Data::NES::TreeMapping ':all';
 use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
 use MusicBrainz::Server::Entity::Artist;
 use MusicBrainz::Server::Entity::PartialDate;
+use MusicBrainz::Server::Entity::Tree::Artist;
 
 with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/artist'
 };
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
+
+sub tree_class { 'MusicBrainz::Server::Entity::Tree::Artist' }
 
 around create => sub {
     my ($orig, $self, $edit, $editor, $tree) = @_;
@@ -68,7 +71,7 @@ sub tree_to_json {
 sub view_tree {
     my ($self, $revision) = @_;
 
-    return MusicBrainz::Server::Entity::Tree::Artist->new(
+    return $self->tree_class->new(
         artist => $revision,
         annotation => $self->get_annotation($revision),
         aliases => $self->get_aliases($revision),

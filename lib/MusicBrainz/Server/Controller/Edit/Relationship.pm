@@ -7,7 +7,6 @@ use MusicBrainz::Server::Constants qw( $EDIT_RELATIONSHIP_DELETE );
 use MusicBrainz::Server::Data::Utils qw( type_to_controller type_to_model );
 use MusicBrainz::Server::Entity::Link;
 use MusicBrainz::Server::Entity::NES::Relationship;
-use MusicBrainz::Server::Entity::Tree::Work;
 use MusicBrainz::Server::Edit::Relationship::Delete;
 use MusicBrainz::Server::Edit::Relationship::Edit;
 use MusicBrainz::Server::Translation qw( l ln );
@@ -254,7 +253,7 @@ sub create : Local RequireAuth Edit
                 }
 
             my $edit = $c->model('NES::Edit')->open;
-            run_update($c, $edit, 'NES::Work', $entity0, sub {
+            run_update($c, $edit, type_to_model($type0), $entity0, sub {
                 my $rels = shift;
                 return [
                     @$rels,
@@ -270,7 +269,6 @@ sub create : Local RequireAuth Edit
             my $redirect = $c->req->params->{returnto} ||
                 $c->uri_for_action($c->controller(type_to_controller($type0))->action_for('show'), [ $source_gid ]);
             $c->response->redirect($redirect);
-            $c->detach;
         }
     });
 }
@@ -341,7 +339,7 @@ sub create_url : Local RequireAuth Edit
             my @attributes = $self->flatten_attributes($form->field('attrs'));
             my $url = $c->model('NES::URL')->find_or_insert($edit, $c->user, $form->field('url')->value);
 
-            run_update($c, $edit, 'NES::Work', $entity, sub {
+            run_update($c, $edit, type_to_model($type), $entity, sub {
                 my $rels = shift;
                 return [
                     @$rels,
@@ -383,9 +381,9 @@ sub run_update {
 
     my $relationships = $c->model($m)->get_relationships($source);
 
-    $c->model('NES::Work')->update(
+    $c->model($m)->update(
         $edit, $c->user, $source,
-        MusicBrainz::Server::Entity::Tree::Work->new(
+        $c->model($m)->tree_class->new(
             relationships => $update->($relationships)
         )
     );

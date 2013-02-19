@@ -11,6 +11,8 @@ with 'MusicBrainz::Server::Data::Role::NES' => {
 };
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
 
+sub tree_class { 'MusicBrainz::Server::Entity::Tree::URL' }
+
 my %URL_SPECIALIZATIONS = (
     '45cat'           => qr{^https?://(?:www.)?45cat.com/}i,
     'Allmusic'        => qr{^https?://(?:www.)?allmusic.com/}i,
@@ -76,7 +78,7 @@ sub find_or_insert {
     my ($self, $edit, $editor, $url) = @_;
     $self->create(
         $edit, $editor,
-        MusicBrainz::Server::Entity::Tree::URL->new(
+        $self->tree_class->new(
             url => determine_url_class($url)->new(
                 url => $url
             )
@@ -106,7 +108,7 @@ sub map_core_entity {
 sub view_tree {
     my ($self, $revision) = @_;
 
-    return MusicBrainz::Server::Entity::Tree::URL->new(
+    return $self->tree_class->new(
         url => $revision,
         relationships => $self->get_relationships($revision)
     );

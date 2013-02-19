@@ -124,12 +124,13 @@ sub edit_annotation : Chained('load') PathPart RequireAuth Edit
         }
         else
         {
+            my $model = $self->{model};
             run_update_form(
-                $self->{model}, $c, $form,
+                $model, $c, $form,
                 build_tree => sub {
                     my $values = shift;
 
-                    return $self->{tree_entity}->new(
+                    return $c->model($model)->tree_class->new(
                         annotation => $values->{text}
                     );
                 }

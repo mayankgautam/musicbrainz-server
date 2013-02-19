@@ -4,6 +4,7 @@ use Moose;
 
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
 use MusicBrainz::Server::Entity::Recording;
+use MusicBrainz::Server::Entity::Tree::Recording;
 
 with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/recording'
@@ -17,6 +18,8 @@ around create => sub {
 
     $self->$orig($edit, $editor, $tree);
 };
+
+sub tree_class { 'MusicBrainz::Server::Entity::Tree::Recording' }
 
 sub map_core_entity {
     my ($self, $response) = @_;
@@ -51,7 +54,7 @@ sub tree_to_json {
 sub view_tree {
     my ($self, $revision) = @_;
 
-    return MusicBrainz::Server::Entity::Tree::Recording->new(
+    return $self->tree_class->new(
         recording => $revision,
         annotation => $self->get_annotation($revision),
         relationships => $self->get_relationships($revision)

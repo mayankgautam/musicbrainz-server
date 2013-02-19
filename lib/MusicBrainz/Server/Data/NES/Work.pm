@@ -6,6 +6,7 @@ use MusicBrainz::Server::Data::NES::TreeMapping ':all';
 use MusicBrainz::Server::Data::Utils qw( object_to_revision_ids );
 use MusicBrainz::Server::Entity::NES::Relationship;
 use MusicBrainz::Server::Entity::NES::Revision;
+use MusicBrainz::Server::Entity::Tree::Work;
 use MusicBrainz::Server::Entity::Work;
 
 with 'MusicBrainz::Server::Data::Role::NES' => {
@@ -18,6 +19,8 @@ with 'MusicBrainz::Server::Data::NES::Role::Relationship';
 with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
     model => 'Work'
 };
+
+sub tree_class { 'MusicBrainz::Server::Entity::Tree::Work' }
 
 around create => sub {
     my ($orig, $self, $edit, $editor, $tree) = @_;
@@ -32,7 +35,7 @@ around create => sub {
 sub view_tree {
     my ($self, $revision) = @_;
 
-    return MusicBrainz::Server::Entity::Tree::Work->new(
+    return $self->tree_class->new(
         work => $revision,
         iswcs => $self->get_iswcs($revision),
         annotation => $self->get_annotation($revision),

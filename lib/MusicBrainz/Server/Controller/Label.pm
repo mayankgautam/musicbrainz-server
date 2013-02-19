@@ -11,10 +11,6 @@ use MusicBrainz::Server::Form::Confirm;
 use MusicBrainz::Server::Form::Label;
 use Sql;
 
-__PACKAGE__->config(
-    tree_entity => 'MusicBrainz::Server::Entity::Tree::Label',
-);
-
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model       => 'NES::Label',
     entity_name => 'label',
@@ -75,19 +71,6 @@ after 'load' => sub
     $c->model('LabelType')->load($label);
     $c->model('Country')->load($label);
 };
-
-=head2 relations
-
-Show all relations to this label
-
-=cut
-
-sub relations : Chained('load')
-{
-    # NES
-    # my ($self, $c) = @_;
-    # $c->stash->{relations} = $c->model('Relation')->load_relations($self->entity);
-}
 
 =head2 show
 

@@ -9,10 +9,6 @@ use MusicBrainz::Server::Entity::Work;
 use MusicBrainz::Server::NES::Controller::Utils qw( create_edit create_update );
 use MusicBrainz::Server::Translation qw( l );
 
-__PACKAGE__->config(
-    tree_entity => 'MusicBrainz::Server::Entity::Tree::Work',
-);
-
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model       => 'NES::Work',
     entity_name => 'work',
