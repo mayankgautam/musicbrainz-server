@@ -7,7 +7,9 @@ after 'load' => sub {
     my ($self, $c) = @_;
     my $entity_name = $self->{entity_name};
     my $entity = $c->stash->{ $entity_name };
-    $c->model( $self->{model} )->ipi->load_for($entity);
+    $c->model('MB')->with_nes_transaction(sub {
+        $c->model( $self->{model} )->load_ipis($entity);
+    });
 };
 
 no Moose::Role;

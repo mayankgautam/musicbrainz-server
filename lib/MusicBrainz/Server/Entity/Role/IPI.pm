@@ -3,7 +3,7 @@ use Moose::Role;
 
 has ipi_codes => (
     isa => 'ArrayRef',
-    is => 'ro',
+    is => 'rw',
     default => sub { [] },
     traits => [ 'Array' ],
     handles => {

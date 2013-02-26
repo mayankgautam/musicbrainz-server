@@ -6,6 +6,11 @@ has label => (
     predicate => 'label_set',
 );
 
+has ipi_codes => (
+    is => 'rw',
+    predicate => 'ipi_codes_set'
+);
+
 has aliases => (
     is => 'rw',
     predicate => 'aliases_set',
@@ -36,12 +41,20 @@ sub merge {
     $self->relationships($tree->relationships)
         if ($tree->relationships_set);
 
+    $self->ipi_codes($tree->ipi_codes)
+        if ($tree->ipi_codes_set);
+
     return $self;
 }
 
 sub complete {
     my $tree = shift;
-    return $tree->label_set && $tree->aliases_set && $tree->annotation_set && $tree->relationships_set;
+    return
+        $tree->label_set &&
+        $tree->aliases_set &&
+        $tree->annotation_set &&
+        $tree->relationships_set &&
+        $tree->ipi_codes_set;
 }
 
 1;

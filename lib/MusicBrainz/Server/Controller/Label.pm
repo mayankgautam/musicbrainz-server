@@ -6,6 +6,7 @@ BEGIN { extends 'MusicBrainz::Server::Controller'; }
 use Data::Page;
 use MusicBrainz::Server::Constants qw( $DLABEL_ID $EDIT_LABEL_DELETE $EDIT_LABEL_EDIT $EDIT_LABEL_MERGE );
 use MusicBrainz::Server::Entity::Label;
+use MusicBrainz::Server::Entity::LabelIPI;
 use MusicBrainz::Server::Entity::Tree::Label;
 use MusicBrainz::Server::Form::Confirm;
 use MusicBrainz::Server::Form::Label;
@@ -21,7 +22,7 @@ with 'MusicBrainz::Server::Controller::Role::Annotation';
 with 'MusicBrainz::Server::Controller::Role::Alias';
 with 'MusicBrainz::Server::Controller::Role::Details';
 with 'MusicBrainz::Server::Controller::Role::EditListing';
-# with 'MusicBrainz::Server::Controller::Role::IPI'; NES
+with 'MusicBrainz::Server::Controller::Role::IPI';
 with 'MusicBrainz::Server::Controller::Role::Relationship';
 with 'MusicBrainz::Server::Controller::Role::Rating';
 with 'MusicBrainz::Server::Controller::Role::Tag';
@@ -117,7 +118,11 @@ with 'MusicBrainz::Server::Controller::Role::Create' => {
 sub tree {
     my ($self, $values) = @_;
     return MusicBrainz::Server::Entity::Tree::Label->new(
-        label => MusicBrainz::Server::Entity::Label->new($values)
+        label => MusicBrainz::Server::Entity::Label->new($values),
+        ipi_codes => [
+            map { MusicBrainz::Server::Entity::LabelIPI->new(ipi => $_) }
+                @{ $values->{ipi_codes} // [] }
+        ]
     );
 }
 

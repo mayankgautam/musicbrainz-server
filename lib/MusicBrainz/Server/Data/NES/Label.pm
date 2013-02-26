@@ -3,8 +3,9 @@ use feature 'switch';
 use Moose;
 
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
-use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
+use MusicBrainz::Server::Data::Utils qw( object_to_revision_ids partial_date_to_hash );
 use MusicBrainz::Server::Entity::Label;
+use MusicBrainz::Server::Entity::LabelIPI;
 use MusicBrainz::Server::Entity::PartialDate;
 use MusicBrainz::Server::Entity::Tree::Label;
 
@@ -27,6 +28,7 @@ around create => sub {
     $tree->annotation('') unless $tree->annotation_set;
     $tree->aliases([]) unless $tree->aliases_set;
     $tree->relationships([]) unless $tree->relationships_set;
+    $tree->ipi_codes([]) unless $tree->ipi_codes_set;
 
     $self->$orig($edit, $editor, $tree);
 };
@@ -70,7 +72,10 @@ sub tree_to_json {
         },
         annotation_to_json($tree),
         aliases_to_json($tree),
-        relationships_to_json($tree)
+        relationships_to_json($tree),
+        'ipi-codes' => [
+            map { $_->ipi } @{ $tree->ipi_codes }
+        ]
     );
 }
 
@@ -81,8 +86,39 @@ sub view_tree {
         label => $revision,
         annotation => $self->get_annotation($revision),
         aliases => $self->get_aliases($revision),
-        relationships => $self->get_relationships($revision)
+        relationships => $self->get_relationships($revision),
+        ipi_codes => $self->get_ipi_codes($revision)
     );
+}
+
+sub get_ipi_codes {
+    my ($self, $revision) = @_;
+    warn "Unimplemented";
+    return [];
+}
+
+sub load_ipis {
+    my ($self, @labels) = @_;
+    my %labels_by_revision_id = object_to_revision_ids(@labels);
+    my %ipi_map = %{
+        $self->request('/ipi/find-by-labels', {
+            revisions => [
+                map +{ revision => $_->revision_id }, @labels
+            ]
+        })
+    };
+
+    for my $key (keys %ipi_map) {
+        for my $label (@{ $labels_by_revision_id{$key} }) {
+            $label->ipi_codes([
+                map {
+                    MusicBrainz::Server::Entity::LabelIPI->new( ipi => $_ )
+                  } @{ $ipi_map{$key} }
+            ]);
+        }
+    }
+
+    return;
 }
 
 __PACKAGE__->meta->make_immutable;
