@@ -31,6 +31,13 @@ sub map_core_entity {
         comment => $data{comment},
         primary_type_id => $data{'primary-type'},
         artist_credit_id => $data{'artist-credit'},
+        secondary_types => [
+            map {
+                MusicBrainz::Server::Entity::ReleaseGroupSecondaryType->new(
+                    id => $_
+                )
+            } @{ $data{'secondary-types'} }
+        ],
 
         gid => $response->{mbid},
         revision_id => $response->{revision}
@@ -69,6 +76,16 @@ sub view_tree {
         annotation => $self->get_annotation($revision),
         relationships => $self->get_relationships($revision)
     );
+}
+
+sub find_by_artist {
+    my ($self, $artist) = @_;
+
+    return [
+        map { $self->map_core_entity($_) }
+            @{ $self->scoped_request('/find-by-artist',
+                                     { artist => $artist->gid }) }
+    ];
 }
 
 __PACKAGE__->meta->make_immutable;

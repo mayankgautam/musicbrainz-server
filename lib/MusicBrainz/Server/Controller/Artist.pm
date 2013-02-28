@@ -24,7 +24,7 @@ use HTTP::Status qw( :constants );
 use MusicBrainz::Server::Data::Utils qw( is_special_artist );
 use MusicBrainz::Server::Constants qw(
     $DARTIST_ID
-    $VARTIST_ID
+    $VARTIST_GID
     $EDITOR_MODBOT
     $EDIT_ARTIST_MERGE
     $EDIT_ARTIST_CREATE
@@ -122,49 +122,6 @@ after 'aliases' => sub
     $c->stash( artist_credits => $artist_credits );
 };
 
-=head2 similar
-
-Display artists similar to this artist
-
-=cut
-
-sub similar : Chained('load')
-{
-    my ($self, $c) = @_;
-    my $artist = $self->entity;
-
-    $c->stash->{similar_artists} = $c->model('Artist')->find_similar_artists($artist);
-}
-
-=head2 relations
-
-Shows all the entities (except track) that this artist is related to.
-
-=cut
-
-sub relations : Chained('load')
-{
-    my ($self, $c) = @_;
-    my $artist = $self->entity;
-
-    $c->stash->{relations} = $c->model('Relation')->load_relations($artist, to_type => [ 'artist', 'url', 'label', 'album' ]);
-}
-
-=head2 appearances
-
-Display a list of releases that an artist appears on via advanced
-relations.
-
-=cut
-
-sub appearances : Chained('load')
-{
-    my ($self, $c) = @_;
-    my $artist = $self->entity;
-
-    $c->stash->{releases} = $c->model('Release')->find_linked_albums($artist);
-}
-
 =head2 show
 
 Shows an artist's main landing page.
@@ -179,66 +136,67 @@ sub show : PathPart('') Chained('load')
 {
     my ($self, $c) = @_;
 
-    # my $artist = $c->stash->{artist};
-    # my $release_groups;
-    # if ($c->stash->{artist}->id == $VARTIST_ID)
-    # {
-    #     my $index = $c->req->query_params->{index};
-    #     if ($index) {
-    #         $release_groups = $self->_load_paged($c, sub {
-    #             $c->model('ReleaseGroup')->find_by_name_prefix_va($index, shift,
-    #                                                               shift);
-    #         });
-    #     }
-    #     $c->stash(
-    #         template => 'artist/browse_various.tt',
-    #         index    => $index,
-    #     );
-    # }
-    # else
-    # {
-    #     my %filter = %{ $self->process_filter($c, sub {
-    #         return create_artist_release_groups_form($c, $artist->id);
-    #     }) };
+    $c->model('MB')->with_nes_transaction(sub {
+        my $artist = $c->stash->{artist};
+        my $release_groups;
+        if ($c->stash->{artist}->gid == $VARTIST_GID)
+        {
+        #     my $index = $c->req->query_params->{index};
+        #     if ($index) {
+        #         $release_groups = $self->_load_paged($c, sub {
+        #             $c->model('ReleaseGroup')->find_by_name_prefix_va($index, shift,
+        #                                                               shift);
+        #         });
+        #     }
+        #     $c->stash(
+        #         template => 'artist/browse_various.tt',
+        #         index    => $index,
+        #     );
+        }
+        else {
+            my %filter = %{ $self->process_filter($c, sub {
+                return create_artist_release_groups_form($c, $artist->id);
+            }) };
 
-    #     my $method = 'find_by_artist';
-    #     my $show_va = $c->req->query_params->{va};
-    #     if ($show_va) {
-    #         $method = 'find_by_track_artist';
-    #     }
+            my $method = 'find_by_artist';
+            my $show_va = $c->req->query_params->{va};
+            if ($show_va) {
+            #     $method = 'find_by_track_artist';
+            }
 
-    #     $release_groups = $self->_load_paged($c, sub {
-    #             $c->model('ReleaseGroup')->$method($c->stash->{artist}->id, shift, shift, filter => \%filter);
-    #         });
+            $release_groups = $self->_load_paged($c, sub {
+                $c->model('NES::ReleaseGroup')->$method($c->stash->{artist}, shift, shift, filter => \%filter);
+            });
 
-    #     my $pager = $c->stash->{pager};
-    #     if (!$show_va && !%filter && $pager->total_entries == 0) {
-    #         $release_groups = $self->_load_paged($c, sub {
-    #                 $c->model('ReleaseGroup')->find_by_track_artist($c->stash->{artist}->id, shift, shift, filter => \%filter);
-    #             });
-    #         $c->stash(
-    #             va_only => 1
-    #         );
-    #     }
+            my $pager = $c->stash->{pager};
+            if (!$show_va && !%filter && $pager->total_entries == 0) {
+                #     $release_groups = $self->_load_paged($c, sub {
+                #             $c->model('ReleaseGroup')->find_by_track_artist($c->stash->{artist}->id, shift, shift, filter => \%filter);
+                #         });
+                $c->stash(
+                    # va_only => 1
+                );
+            }
 
+            $c->stash(
+                show_va => $show_va,
+                template => 'artist/index.tt'
+            );
+        }
+
+        # if ($c->user_exists) {
+        #     $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, @$release_groups);
+        # }
+
+        $c->model('ArtistCredit')->load(@$release_groups);
+        $c->model('ReleaseGroupType')->load(@$release_groups);
         $c->stash(
-            # show_va => $show_va,
-            template => 'artist/index.tt'
+            release_groups => $release_groups,
+            show_artists => scalar grep {
+                $_->artist_credit->name ne $artist->name
+            } @$release_groups,
         );
-    # }
-
-    # if ($c->user_exists) {
-    #     $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, @$release_groups);
-    # }
-
-    # $c->model('ArtistCredit')->load(@$release_groups);
-    # $c->model('ReleaseGroupType')->load(@$release_groups);
-    # $c->stash(
-    #     release_groups => $release_groups,
-    #     show_artists => scalar grep {
-    #         $_->artist_credit->name ne $artist->name
-    #     } @$release_groups,
-    # );
+    });
 }
 
 =head2 works
@@ -280,7 +238,7 @@ sub recordings : Chained('load')
     my $artist = $c->stash->{artist};
     my $recordings;
 
-    if ($artist->id == $VARTIST_ID)
+    if ($artist->id == $VARTIST_GID)
     {
         my $index = $c->req->query_params->{index};
         if ($index) {
@@ -344,7 +302,7 @@ sub releases : Chained('load')
     my $artist = $c->stash->{artist};
     my $releases;
 
-    if ($artist->id == $VARTIST_ID)
+    if ($artist->id == $VARTIST_GID)
     {
         my $index = $c->req->query_params->{index};
         if ($index) {

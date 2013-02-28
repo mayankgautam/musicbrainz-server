@@ -27,23 +27,12 @@ sub _entity_class
 
 sub load_for_release_groups {
     my ($self, @release_groups) = @_;
-    my %rg_by_id = object_to_ids(uniq @release_groups);
-    my @ids = keys %rg_by_id;
-    my @rows = @{
-        $self->c->sql->select_list_of_hashes(
-            'SELECT release_group, id, name
-             FROM release_group_secondary_type_join
-             JOIN release_group_secondary_type ON id = secondary_type
-             WHERE release_group = any(?)',
-            \@ids
-        )
-    };
-    for my $type (@rows) {
-        for my $rg (@{ $rg_by_id{ $type->{release_group} } }) {
-            $rg->add_secondary_type(
-                MusicBrainz::Server::Entity::ReleaseGroupSecondaryType->new($type)
-              );
-        }
+
+    my @types = map { $_->all_secondary_types } @release_groups;
+    my %type_map = %{ $self->get_by_ids(map { $_->id } @types) };
+
+    for my $type (@types) {
+        $type->name($type_map{$type->id}->name);
     }
 }
 
