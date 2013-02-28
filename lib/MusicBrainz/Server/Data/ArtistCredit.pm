@@ -11,52 +11,33 @@ use MusicBrainz::Server::Data::Utils qw( placeholders load_subobjects );
 
 extends 'MusicBrainz::Server::Data::Entity';
 with 'MusicBrainz::Server::Data::Role::EntityCache' => { prefix => 'ac' };
+with 'MusicBrainz::Server::Data::Role::NES' => { root => '/' };
 
 sub get_by_ids
 {
     my ($self, @ids) = @_;
-    my $query = "SELECT artist, artist_name.name, join_phrase, artist_credit,
-                        artist.id, gid, n2.name AS artist_name,
-                        n3.name AS sort_name,
-                        comment " .
-                "FROM artist_credit_name " .
-                "JOIN artist_name ON artist_name.id=artist_credit_name.name " .
-                "JOIN artist ON artist.id=artist_credit_name.artist " .
-                "JOIN artist_name n2 ON n2.id=artist.name " .
-                "JOIN artist_name n3 ON n3.id=artist.sort_name " .
-                "WHERE artist_credit IN (" . placeholders(@ids) . ") " .
-                "ORDER BY artist_credit, position";
+    my %mapping = %{ $self->request('/artist-credit/expand', \@ids) };
+
     my %result;
-    my %counts;
-    foreach my $id (@ids) {
-        my $obj = MusicBrainz::Server::Entity::ArtistCredit->new(id => $id);
-        $result{$id} = $obj;
-        $counts{$id} = 0;
-    }
-    $self->sql->select($query, @ids);
-    while (1) {
-        my $row = $self->sql->next_row_hash_ref or last;
-        my %info = (
-            artist_id => $row->{artist},
-            name => $row->{name}
+    for my $ac_id (keys %mapping) {
+        my @names = @{ $mapping{$ac_id} };
+        $result{$ac_id} = MusicBrainz::Server::Entity::ArtistCredit->new(
+            artist_count => scalar(@names),
+            names => [
+                map {
+                    MusicBrainz::Server::Entity::ArtistCreditName->new(
+                        name => $_->{name},
+                        artist_gid => $_->{artist},
+                        join_phrase => $_->{'join-phrase'},
+                        artist => MusicBrainz::Server::Entity::Artist->new(
+                            gid => $_->{artist}
+                        )
+                    )
+                } @names
+            ]
         );
-        $info{join_phrase} = $row->{join_phrase} // '';
-        my $obj = MusicBrainz::Server::Entity::ArtistCreditName->new(%info);
-        $obj->artist(MusicBrainz::Server::Entity::Artist->new(
-            id => $row->{id},
-            gid => $row->{gid},
-            name => $row->{artist_name},
-            sort_name => $row->{sort_name},
-            comment => $row->{comment}
-        ));
-        my $id = $row->{artist_credit};
-        $result{$id}->add_name($obj);
-        $counts{$id} += 1;
     }
-    $self->sql->finish;
-    foreach my $id (@ids) {
-        $result{$id}->artist_count($counts{$id});
-    }
+
     return \%result;
 }
 

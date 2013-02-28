@@ -7,55 +7,34 @@ use MusicBrainz::Server::Data::Release;
 use MusicBrainz::Server::Data::Utils qw(
     hash_to_row
     placeholders
-    object_to_ids
+    object_to_revision_ids
     query_to_list
     query_to_list_limited
 );
 
 extends 'MusicBrainz::Server::Data::Entity';
-
-sub _table
-{
-    return 'release_label rl';
-}
-
-sub _columns
-{
-    return 'rl.id AS rl_id, rl.release AS rl_release, rl.label AS rl_label,
-            rl.catalog_number AS rl_catalog_number';
-}
-
-sub _column_mapping
-{
-    return {
-        id             => 'rl_id',
-        release_id     => 'rl_release',
-        label_id       => 'rl_label',
-        catalog_number => 'rl_catalog_number',
-    };
-}
-
-sub _entity_class
-{
-    return 'MusicBrainz::Server::Entity::ReleaseLabel';
-}
+with 'MusicBrainz::Server::Data::Role::NES' => {
+    root => '/'
+};
 
 sub load
 {
     my ($self, @releases) = @_;
-    my %id_to_release = object_to_ids (@releases);
+    my %id_to_release = object_to_revision_ids (@releases);
     my @ids = keys %id_to_release;
-    return unless @ids; # nothing to do
-    my $query = "SELECT " . $self->_columns . "
-                 FROM " . $self->_table . "
-                 WHERE release IN (" . placeholders(@ids) . ")
-                 ORDER BY release, rl_catalog_number";
-    my @labels = query_to_list($self->c->sql, sub { $self->_new_from_row(@_) },
-                               $query, @ids);
-    foreach my $label (@labels) {
-        foreach (@{ $id_to_release{$label->release_id} })
-        {
-            $_->add_label($label);
+
+    my %result = %{ $self->request('/release/view-release-labels', \@ids) };
+
+    for my $release_id (@ids) {
+        for my $release (@{$id_to_release{$release_id}}) {
+            $release->labels([
+                map {
+                    MusicBrainz::Server::Entity::ReleaseLabel->new(
+                        label_gid => $_->{label},
+                        catalog_number => $_->{'catalog-number'}
+                    )
+                  } @{ $result{$release_id} }
+            ]);
         }
     }
 }

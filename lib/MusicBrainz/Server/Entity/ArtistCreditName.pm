@@ -13,9 +13,9 @@ has 'join_phrase' => (
     isa => 'Str'
 );
 
-has 'artist_id' => (
+has 'artist_gid' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Str'
 );
 
 has 'artist' => (

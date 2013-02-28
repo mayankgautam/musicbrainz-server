@@ -5,57 +5,21 @@ use namespace::autoclean;
 use MusicBrainz::Server::Data::Release;
 use MusicBrainz::Server::Entity::Medium;
 use MusicBrainz::Server::Entity::Tracklist;
+use MusicBrainz::Server::Entity::Track;
 use MusicBrainz::Server::Data::Utils qw(
     load_subobjects
     object_to_ids
+    object_to_revision_ids
     placeholders
     query_to_list
     query_to_list_limited
 );
 
 extends 'MusicBrainz::Server::Data::Entity';
+with 'MusicBrainz::Server::Data::Role::NES' => { root => '/' };
 with 'MusicBrainz::Server::Data::Role::Editable' => { table => 'medium' };
 
 use Scalar::Util qw( weaken );
-
-sub _table
-{
-    return 'medium JOIN tracklist ON medium.tracklist=tracklist.id';
-}
-
-sub _columns
-{
-    return 'medium.id, tracklist, release, position, format, medium.name,
-            medium.edits_pending, track_count';
-}
-
-sub _id_column
-{
-    return 'medium.id';
-}
-
-sub _column_mapping
-{
-    return {
-        id            => 'id',
-        tracklist_id  => 'tracklist',
-        tracklist     => sub {
-            my ($row, $prefix) = @_;
-            my $id = $row->{$prefix . 'tracklist'};
-            my $track_count = $row->{$prefix . 'track_count'};
-            return unless defined($id) && defined($track_count);
-            return MusicBrainz::Server::Entity::Tracklist->new(
-                id          => $id,
-                track_count => $track_count,
-            );
-        },
-        release_id    => 'release',
-        position      => 'position',
-        name          => 'name',
-        format_id     => 'format',
-        edits_pending => 'edits_pending',
-    };
-}
 
 sub _entity_class
 {
@@ -71,23 +35,34 @@ sub load
 sub load_for_releases
 {
     my ($self, @releases) = @_;
-    my %id_to_release = object_to_ids (@releases);
-    my @ids = keys %id_to_release;
 
+    my %id_map = object_to_revision_ids(@releases);
+    my @ids = keys %id_map;
 
-    return unless @ids; # nothing to do
-    my $query = "SELECT " . $self->_columns . "
-                 FROM " . $self->_table . "
-                 WHERE release IN (" . placeholders(@ids) . ")
-                 ORDER BY release, position";
-    my @mediums = query_to_list($self->c->sql, sub { $self->_new_from_row(@_) },
-                                $query, @ids);
-    foreach my $medium (@mediums) {
-        foreach my $release (@{ $id_to_release{$medium->release_id} })
-        {
-            $medium->release($release);
-            $release->add_medium($medium);
-            weaken($medium->{release}); # XXX HACK!
+    my %response = %{
+        $self->request('/release/view-mediums', \@ids)
+    };
+
+    for my $revision_id (@ids) {
+        for my $release (@{ $id_map{$revision_id} }) {
+            $release->mediums([
+                map {
+                    MusicBrainz::Server::Entity::Medium->new(
+                        name => $_->{name},
+                        format_id => $_->{format},
+                        position => $_->{position},
+                        tracklist => MusicBrainz::Server::Entity::Tracklist->new(
+                            tracks => [
+                                map {
+                                    MusicBrainz::Server::Entity::Track->new(
+                                        name => $_->{name}
+                                    )
+                                } @{ $_->{tracks} }
+                            ]
+                        )
+                    )
+                } @{ $response{$revision_id} }
+            ]);
         }
     }
 }

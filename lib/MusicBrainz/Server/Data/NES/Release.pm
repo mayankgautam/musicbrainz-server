@@ -4,6 +4,7 @@ use Moose;
 
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
 use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
+use MusicBrainz::Server::Entity::Barcode;
 use MusicBrainz::Server::Entity::Release;
 use MusicBrainz::Server::Entity::Tree::Release;
 
@@ -26,10 +27,16 @@ around create => sub {
 sub map_core_entity {
     my ($self, $response) = @_;
     my %data = %{ $response->{data} };
-    return MusicBrainz::Server::Entity::ReleaseGroup->new(
+    return MusicBrainz::Server::Entity::Release->new(
         name => $data{name},
         comment => $data{comment},
         primary_type_id => $data{'primary-type'},
+        artist_credit_id => $data{'artist-credit'},
+        country_id => $data{country},
+        date => MusicBrainz::Server::Entity::PartialDate->new($data{date}),
+        barcode => defined $data{barcode}
+            ? MusicBrainz::Server::Entity::Barcode->new($data{barcode})
+            : undef,
 
         gid => $response->{mbid},
         revision_id => $response->{revision}
@@ -68,6 +75,12 @@ sub tree_to_json {
                 ]
             }, $release->all_mediums
         ],
+        labels => [
+            map +{
+                label => $_->label_gid,
+                'catalog-number' => $_->catalog_number
+            }, $release->all_labels
+        ],
         annotation_to_json($tree),
         relationships_to_json($tree)
     );
@@ -81,6 +94,14 @@ sub view_tree {
         annotation => $self->get_annotation($revision),
         relationships => $self->get_relationships($revision)
     );
+}
+
+sub find_by_label {
+    my ($self, $label, undef, undef) = @_;
+    return [
+        map { $self->map_core_entity($_) }
+            @{ $self->scoped_request('/find-by-label', { label => $label->gid }) }
+    ];
 }
 
 __PACKAGE__->meta->make_immutable;

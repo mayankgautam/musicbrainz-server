@@ -14,6 +14,7 @@ use MusicBrainz::Server::Entity::PartialDate;
 use MusicBrainz::Server::Entity::Release;
 use MusicBrainz::Server::Entity::ReleaseGroup;
 use MusicBrainz::Server::Entity::ReleaseGroupSecondaryType;
+use MusicBrainz::Server::Entity::ReleaseLabel;
 use MusicBrainz::Server::Entity::Track;
 use MusicBrainz::Server::Entity::Tracklist;
 use MusicBrainz::Server::Entity::Tree::Recording;
@@ -297,6 +298,16 @@ sub create_new_release_revision {
                                 : load_tracklist($self->c, $_->{tracklist_id})
                             );
                     } grep { !$_->{deleted} } @{ $data->{mediums} }
+                ],
+                labels => [
+                    map {
+                        MusicBrainz::Server::Entity::ReleaseLabel->new(
+                            label_gid => $_->{label_id},
+                            catalog_number => $_->{catalog_number}
+                        )
+                    } grep {
+                        !$_->{deleted}
+                    } @{ $data->{labels} }
                 ]
             )
         )

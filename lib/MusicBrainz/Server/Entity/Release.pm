@@ -258,7 +258,7 @@ sub filter_labels
     my ($self, $label) = @_;
     my @labels = $self->all_labels
         or return ();
-    return grep { $_->label_id && $_->label_id == $label->id } @labels;
+    return grep { $_->label_gid && $_->label_gid == $label->gid } @labels;
 }
 
 =head2 length

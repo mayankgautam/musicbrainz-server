@@ -6,11 +6,6 @@ use MusicBrainz::Server::Entity::Types;
 extends 'MusicBrainz::Server::Entity';
 with 'MusicBrainz::Server::Entity::Role::Editable';
 
-has 'track_count' => (
-    is => 'rw',
-    isa => 'Int'
-);
-
 has 'tracks' => (
     is => 'rw',
     isa => 'ArrayRef[Track]',
@@ -20,7 +15,8 @@ has 'tracks' => (
     handles => {
         all_tracks => 'elements',
         add_track => 'push',
-        clear_tracks => 'clear'
+        clear_tracks => 'clear',
+        track_count => 'count',
     }
 );
 
@@ -51,7 +47,6 @@ sub length {
 
     return $length;
 }
-
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
