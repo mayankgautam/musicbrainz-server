@@ -15,6 +15,9 @@ with 'MusicBrainz::Server::Data::Role::NES' => {
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
 with 'MusicBrainz::Server::Data::NES::Role::Alias';
 with 'MusicBrainz::Server::Data::NES::Role::Annotation';
+with 'MusicBrainz::Server::Data::NES::Role::IPI' => {
+    entity_class => 'MusicBrainz::Server::Entity::LabelIPI',
+};
 with 'MusicBrainz::Server::Data::NES::Role::Relationship';
 with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
     model => 'Label'
@@ -89,36 +92,6 @@ sub view_tree {
         relationships => $self->get_relationships($revision),
         ipi_codes => $self->get_ipi_codes($revision)
     );
-}
-
-sub get_ipi_codes {
-    my ($self, $revision) = @_;
-    warn "Unimplemented";
-    return [];
-}
-
-sub load_ipis {
-    my ($self, @labels) = @_;
-    my %labels_by_revision_id = object_to_revision_ids(@labels);
-    my %ipi_map = %{
-        $self->request('/ipi/find-by-labels', {
-            revisions => [
-                map +{ revision => $_->revision_id }, @labels
-            ]
-        })
-    };
-
-    for my $key (keys %ipi_map) {
-        for my $label (@{ $labels_by_revision_id{$key} }) {
-            $label->ipi_codes([
-                map {
-                    MusicBrainz::Server::Entity::LabelIPI->new( ipi => $_ )
-                  } @{ $ipi_map{$key} }
-            ]);
-        }
-    }
-
-    return;
 }
 
 __PACKAGE__->meta->make_immutable;

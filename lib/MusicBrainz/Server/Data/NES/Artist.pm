@@ -5,6 +5,7 @@ use Moose;
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
 use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
 use MusicBrainz::Server::Entity::Artist;
+use MusicBrainz::Server::Entity::ArtistIPI;
 use MusicBrainz::Server::Entity::PartialDate;
 use MusicBrainz::Server::Entity::Tree::Artist;
 
@@ -14,6 +15,9 @@ with 'MusicBrainz::Server::Data::Role::NES' => {
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
 with 'MusicBrainz::Server::Data::NES::Role::Alias';
 with 'MusicBrainz::Server::Data::NES::Role::Annotation';
+with 'MusicBrainz::Server::Data::NES::Role::IPI' => {
+    entity_class => 'MusicBrainz::Server::Entity::ArtistIPI'
+};
 with 'MusicBrainz::Server::Data::NES::Role::Relationship';
 with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
     model => 'Artist'
