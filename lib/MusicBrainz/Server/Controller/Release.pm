@@ -6,7 +6,7 @@ BEGIN { extends 'MusicBrainz::Server::Controller' }
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     entity_name => 'release',
-    model       => 'Release',
+    model       => 'NES::Release',
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
 with 'MusicBrainz::Server::Controller::Role::Annotation';
@@ -52,70 +52,75 @@ sub base : Chained('/') PathPart('release') CaptureArgs(0) { }
 after 'load' => sub
 {
     my ($self, $c) = @_;
-    my $release = $c->stash->{release};
-    $c->model('Release')->load_meta($release);
+    $c->model('MB')->with_nes_transaction(sub {
+        my $release = $c->stash->{release};
+        # $c->model('Release')->load_meta($release); NES
 
-    # Load release group
-    $c->model('ReleaseGroup')->load($release);
-    $c->model('ReleaseGroup')->load_meta($release->release_group);
-    $c->model('Relationship')->load_subset([ 'url' ], $release->release_group);
-    if ($c->user_exists) {
-        $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, $release->release_group);
-    }
+        # Load release group
+        $c->model('NES::ReleaseGroup')->load($release);
+        # NES
+        # $c->model('ReleaseGroup')->load_meta($release->release_group);
+        # $c->model('Relationship')->load_subset([ 'url' ], $release->release_group);
+        # if ($c->user_exists) {
+        #     $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, $release->release_group);
+        # }
 
-    # FIXME: replace this with a proper MusicBrainz::Server::Entity::Artwork object
-    my $prefix = DBDefs->COVER_ART_ARCHIVE_DOWNLOAD_PREFIX . "/release/" . $release->gid;
-    $c->stash->{release_artwork} = {
-        image => $prefix.'/front',
-        large_thumbnail => $prefix.'/front-500',
-        small_thumbnail => $prefix.'/front-250'
-    };
+        # NES
+        # FIXME: replace this with a proper MusicBrainz::Server::Entity::Artwork object
+        # my $prefix = DBDefs->COVER_ART_ARCHIVE_DOWNLOAD_PREFIX . "/release/" . $release->gid;
+        # $c->stash->{release_artwork} = {
+        #     image => $prefix.'/front',
+        #     large_thumbnail => $prefix.'/front-500',
+        #     small_thumbnail => $prefix.'/front-250'
+        # };
 
-    # We need to load more artist credits in 'show'
-    if ($c->action->name ne 'show') {
-        $c->model('ArtistCredit')->load($release);
-    }
+        # We need to load more artist credits in 'show'
+        if ($c->action->name ne 'show') {
+            $c->model('ArtistCredit')->load($release);
+        }
 
-    # The release editor loads this stuff on its own
-    if ($c->action->name ne 'edit') {
-        $c->model('ReleaseStatus')->load($release);
-        $c->model('ReleasePackaging')->load($release);
-        $c->model('Country')->load($release);
-        $c->model('Language')->load($release);
-        $c->model('Script')->load($release);
-        $c->model('ReleaseLabel')->load($release);
-        $c->model('Label')->load($release->all_labels);
-        $c->model('ReleaseGroupType')->load($release->release_group);
-        $c->model('Medium')->load_for_releases($release);
-        $c->model('MediumFormat')->load($release->all_mediums);
-    }
+        # The release editor loads this stuff on its own
+        if ($c->action->name ne 'edit') {
+            $c->model('ReleaseStatus')->load($release);
+            $c->model('ReleasePackaging')->load($release);
+            $c->model('Country')->load($release);
+            $c->model('Language')->load($release);
+            $c->model('Script')->load($release);
+            $c->model('ReleaseLabel')->load($release);
+            $c->model('NES::Label')->load($release->all_labels);
+            $c->model('ReleaseGroupType')->load($release->release_group);
+            $c->model('Medium')->load_for_releases($release);
+            $c->model('MediumFormat')->load($release->all_mediums);
+        }
+    });
 };
 
 # Stuff that has the side bar and thus needs to display collection information
 after [qw( cover_art add_cover_art edit_cover_art reorder_cover_art
            show collections details discids tags relationships )] => sub {
-    my ($self, $c) = @_;
+    # NES
+    # my ($self, $c) = @_;
 
-    my $release = $c->stash->{release};
+    # my $release = $c->stash->{release};
 
-    my @collections;
-    my %containment;
-    if ($c->user_exists) {
-        # Make a list of collections and whether this release is contained in them
-        @collections = $c->model('Collection')->find_all_by_editor($c->user->id);
-        foreach my $collection (@collections) {
-            $containment{$collection->id} = 1
-                if ($c->model('Collection')->check_release($collection->id, $release->id));
-        }
-    }
+    # my @collections;
+    # my %containment;
+    # if ($c->user_exists) {
+    #     # Make a list of collections and whether this release is contained in them
+    #     @collections = $c->model('Collection')->find_all_by_editor($c->user->id);
+    #     foreach my $collection (@collections) {
+    #         $containment{$collection->id} = 1
+    #             if ($c->model('Collection')->check_release($collection->id, $release->id));
+    #     }
+    # }
 
-    my @all_collections = $c->model('Collection')->find_all_by_release($release->id);
+    # my @all_collections = $c->model('Collection')->find_all_by_release($release->id);
 
-    $c->stash(
-        collections => \@collections,
-        containment => \%containment,
-        all_collections => \@all_collections,
-    );
+    # $c->stash(
+    #     collections => \@collections,
+    #     containment => \%containment,
+    #     all_collections => \@all_collections,
+    # );
 };
 
 after 'relationships' => sub
@@ -165,21 +170,25 @@ sub show : Chained('load') PathPart('')
 
     my @mediums = $release->all_mediums;
     my @tracklists = grep { defined } map { $_->tracklist } @mediums;
-    $c->model('Track')->load_for_tracklists(@tracklists);
-
     my @tracks = map { $_->all_tracks } @tracklists;
-    my @recordings = $c->model('Recording')->load(@tracks);
-    $c->model('Recording')->load_meta(@recordings);
-    if ($c->user_exists) {
-        $c->model('Recording')->rating->load_user_ratings($c->user->id, @recordings);
-    }
-    $c->model('ArtistCredit')->load($release, @tracks);
+    $c->model('MB')->with_nes_transaction(sub {
+        my @recordings = $c->model('NES::Recording')->load(@tracks);
+        # NES
+        # $c->model('Recording')->load_meta(@recordings);
+        # if ($c->user_exists) {
+        #     $c->model('Recording')->rating->load_user_ratings($c->user->id, @recordings);
+        # }
 
-    $c->model('Relationship')->load(@recordings);
-    $c->model('Relationship')->load(
-        $release,
-        grep { $_->isa(Work) } map { $_->target }
-            map { $_->all_relationships } @recordings);
+        # NES
+        # $c->model('Relationship')->load(@recordings);
+        # $c->model('Relationship')->load(
+        #     $release,
+        #     grep { $_->isa(Work) } map { $_->target }
+        #         map { $_->all_relationships } @recordings);
+
+
+        $c->model('ArtistCredit')->load($release, @tracks);
+    });
 
     $c->stash(
         template     => 'release/index.tt',
@@ -641,9 +650,12 @@ after 'merge' => sub
     $c->model('Label')->load(map { $_->all_labels } @{ $c->stash->{to_merge} });
 };
 
-with 'MusicBrainz::Server::Controller::Role::Delete' => {
-    edit_type      => $EDIT_RELEASE_DELETE,
-};
+# NES
+# with 'MusicBrainz::Server::Controller::Role::Delete' => {
+#     edit_type      => $EDIT_RELEASE_DELETE,
+# };
+
+sub delete : Chained('load') { }
 
 sub edit_cover_art : Chained('load') PathPart('edit-cover-art') Args(1) Edit RequireAuth
 {

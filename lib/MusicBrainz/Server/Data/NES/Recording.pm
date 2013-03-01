@@ -3,6 +3,7 @@ use feature 'switch';
 use Moose;
 
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
+use MusicBrainz::Server::Data::Utils qw( load_subobjects_gid );
 use MusicBrainz::Server::Entity::Recording;
 use MusicBrainz::Server::Entity::Tree::Recording;
 
@@ -59,6 +60,11 @@ sub view_tree {
         annotation => $self->get_annotation($revision),
         relationships => $self->get_relationships($revision)
     );
+}
+
+sub load {
+    my $self = shift;
+    load_subobjects_gid($self, 'recording', @_);
 }
 
 __PACKAGE__->meta->make_immutable;

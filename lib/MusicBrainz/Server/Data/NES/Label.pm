@@ -3,7 +3,7 @@ use feature 'switch';
 use Moose;
 
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
-use MusicBrainz::Server::Data::Utils qw( object_to_revision_ids partial_date_to_hash );
+use MusicBrainz::Server::Data::Utils qw( load_subobjects_gid object_to_revision_ids partial_date_to_hash );
 use MusicBrainz::Server::Entity::Label;
 use MusicBrainz::Server::Entity::LabelIPI;
 use MusicBrainz::Server::Entity::PartialDate;
@@ -95,11 +95,8 @@ sub view_tree {
 }
 
 sub load {
-    my ($self, @objs) = @_;
-    my $labels = $self->get_by_gids(map { $_->label_gid } @objs);
-    for my $obj (@objs) {
-        $obj->label($labels->{$obj->label_gid});
-    }
+    my $self = shift;
+    load_subobjects_gid($self, 'label', @_);
 }
 
 __PACKAGE__->meta->make_immutable;

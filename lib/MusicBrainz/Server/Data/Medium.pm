@@ -55,7 +55,11 @@ sub load_for_releases
                             tracks => [
                                 map {
                                     MusicBrainz::Server::Entity::Track->new(
-                                        name => $_->{name}
+                                        name => $_->{name},
+                                        number => $_->{number},
+                                        length => $_->{length},
+                                        artist_credit_id => $_->{'artist-credit'},
+                                        recording_gid => $_->{recording}
                                     )
                                 } @{ $_->{tracks} }
                             ]

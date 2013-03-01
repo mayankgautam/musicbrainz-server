@@ -3,7 +3,7 @@ use feature 'switch';
 use Moose;
 
 use MusicBrainz::Server::Data::NES::TreeMapping ':all';
-use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash );
+use MusicBrainz::Server::Data::Utils qw( load_subobjects_gid partial_date_to_hash );
 use MusicBrainz::Server::Entity::ReleaseGroup;
 use MusicBrainz::Server::Entity::Tree::ReleaseGroup;
 
@@ -91,6 +91,11 @@ sub find_by_artist {
             @{ $self->scoped_request('/find-by-artist',
                                      { artist => $artist->gid }) }
     ];
+}
+
+sub load {
+    my $self = shift;
+    load_subobjects_gid($self, 'release_group', @_);
 }
 
 __PACKAGE__->meta->make_immutable;

@@ -56,8 +56,6 @@ sub load_relationships {
     for my $entity (@entities) {
         $entity->relationships($self->get_relationships($entity));
     }
-
-    use Devel::Dwarn; Dwarn \@entities;
 }
 
 1;

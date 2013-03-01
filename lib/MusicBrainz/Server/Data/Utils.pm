@@ -34,6 +34,7 @@ our @EXPORT_OK = qw(
     is_special_label
     load_meta
     load_subobjects
+    load_subobjects_gid
     map_query
     merge_table_attributes
     merge_partial_date
@@ -141,18 +142,34 @@ sub artist_credit_to_ref
 
 sub load_subobjects
 {
-    my ($data_access, $attr_obj, @objs) = @_;
+    _load_subobjects(
+        sub { shift() . '_id' },
+        sub { shift()->get_by_ids(@_) },
+        @_
+    );
+}
+
+sub load_subobjects_gid {
+    _load_subobjects(
+        sub { shift() . '_gid' },
+        sub { shift()->get_by_gids(@_) },
+        @_
+    );
+}
+
+sub _load_subobjects {
+    my ($attr_namer, $loader, $data_access, $attr_obj, @objs) = @_;
 
     @objs = grep { defined } @objs;
     return unless @objs;
 
-    my $attr_id = $attr_obj . "_id";
+    my $attr_id = $attr_namer->($attr_obj);
     @objs = grep { $_->meta->find_attribute_by_name($attr_id) } grep { defined } @objs;
     my %ids = map { ($_->meta->find_attribute_by_name($attr_id)->get_value($_) || "") => 1 } @objs;
     my @ids = grep { $_ } keys %ids;
     my $data;
     if (@ids) {
-        $data = $data_access->get_by_ids(@ids);
+        $data = $loader->($data_access, @ids);
         foreach my $obj (@objs) {
             my $id = $obj->meta->find_attribute_by_name($attr_id)->get_value($obj);
             if (defined $id && exists $data->{$id}) {

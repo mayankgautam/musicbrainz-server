@@ -11,7 +11,12 @@ use MusicBrainz::Server::Entity::Tree::Release;
 with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/release'
 };
+with 'MusicBrainz::Server::Data::NES::Role::Annotation';
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::NES::Role::Relationship';
+with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
+    model => 'Release'
+};
 
 sub tree_class { 'MusicBrainz::Server::Entity::Tree::Release' }
 
@@ -38,6 +43,10 @@ sub map_core_entity {
             ? MusicBrainz::Server::Entity::Barcode->new($data{barcode})
             : undef,
         status_id => $data{status},
+        packaging_id => $data{packaging},
+        language_id => $data{language},
+        script_id => $data{script},
+        release_group_gid => $data{'release-group'},
 
         gid => $response->{mbid},
         revision_id => $response->{revision}

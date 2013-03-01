@@ -82,9 +82,9 @@ has 'release_group' => (
     isa => 'ReleaseGroup'
 );
 
-has 'release_group_id' => (
+has 'release_group_gid' => (
     is => 'rw',
-    isa => 'Int'
+    isa => 'Str'
 );
 
 has 'artist_credit' => (
