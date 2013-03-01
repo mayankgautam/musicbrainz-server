@@ -37,6 +37,7 @@ sub map_core_entity {
         barcode => defined $data{barcode}
             ? MusicBrainz::Server::Entity::Barcode->new($data{barcode})
             : undef,
+        status_id => $data{status},
 
         gid => $response->{mbid},
         revision_id => $response->{revision}
@@ -101,6 +102,14 @@ sub find_by_label {
     return [
         map { $self->map_core_entity($_) }
             @{ $self->scoped_request('/find-by-label', { label => $label->gid }) }
+    ];
+}
+
+sub find_by_release_group {
+    my ($self, $release_group, undef, undef) = @_;
+    return [
+        map { $self->map_core_entity($_) }
+            @{ $self->scoped_request('/find-by-release-group', { 'release-group' => $release_group->gid }) }
     ];
 }
 

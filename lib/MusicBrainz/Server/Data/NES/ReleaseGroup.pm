@@ -11,6 +11,11 @@ with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/release-group'
 };
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::NES::Role::Annotation';
+with 'MusicBrainz::Server::Data::NES::Role::Relationship';
+with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
+    model => 'ReleaseGroup'
+};
 
 sub tree_class { 'MusicBrainz::Server::Entity::Tree::ReleaseGroup' }
 

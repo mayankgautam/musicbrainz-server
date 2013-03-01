@@ -94,5 +94,13 @@ sub view_tree {
     );
 }
 
+sub load {
+    my ($self, @objs) = @_;
+    my $labels = $self->get_by_gids(map { $_->label_gid } @objs);
+    for my $obj (@objs) {
+        $obj->label($labels->{$obj->label_gid});
+    }
+}
+
 __PACKAGE__->meta->make_immutable;
 1;

@@ -430,9 +430,9 @@ END -%]
     out = [];
     seen = {};
     FOR label=labels;
-      IF label.label_id AND !seen.${ label.label_id };
+      IF label.label_gid AND !seen.${ label.label_gid };
         out.push(rdfa_link_label(label.label));
-        seen.${ label.label_id } = 1;
+        seen.${ label.label_gid } = 1;
       END;
     END;
     out.join(', ');

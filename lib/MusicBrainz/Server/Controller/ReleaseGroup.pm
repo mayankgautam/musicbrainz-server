@@ -13,7 +13,7 @@ use MusicBrainz::Server::Entity::Util::Release qw( group_by_release_status );
 use MusicBrainz::Server::Form::Confirm;
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
-    model       => 'ReleaseGroup',
+    model       => 'NES::ReleaseGroup',
     entity_name => 'rg',
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
@@ -38,14 +38,14 @@ after 'load' => sub
     my ($self, $c) = @_;
 
     my $rg = $c->stash->{rg};
-    $c->model('ReleaseGroup')->load_meta($rg);
-    if ($c->user_exists) {
-        $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, $rg);
-    }
+    # $c->model('ReleaseGroup')->load_meta($rg);
+    # if ($c->user_exists) {
+    #     $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, $rg);
+    # }
     $c->model('ReleaseGroupType')->load($rg);
     $c->model('ArtistCredit')->load($rg);
-    $c->model('Artwork')->load_for_release_groups ($rg);
-    $c->stash( can_delete => $c->model('ReleaseGroup')->can_delete($rg->id) );
+    # $c->model('Artwork')->load_for_release_groups ($rg);
+    # $c->stash( can_delete => $c->model('ReleaseGroup')->can_delete($rg->id) );
 };
 
 sub show : Chained('load') PathPart('')
@@ -54,27 +54,29 @@ sub show : Chained('load') PathPart('')
 
     my $rg = $c->stash->{rg};
 
-    my $releases = $self->_load_paged($c, sub {
-        $c->model('Release')->find_by_release_group($rg->id, shift, shift);
+    $c->model('MB')->with_nes_transaction(sub {
+        my $releases = $self->_load_paged($c, sub {
+            $c->model('NES::Release')->find_by_release_group($rg, shift, shift);
+        });
+
+        $c->model('Medium')->load_for_releases(@$releases);
+        $c->model('MediumFormat')->load(map { $_->all_mediums } @$releases);
+        $c->model('Country')->load(@$releases);
+        $c->model('ReleaseLabel')->load(@$releases);
+        $c->model('NES::Label')->load(map { $_->all_labels } @$releases);
+        $c->model('ReleaseStatus')->load(@$releases);
+        $c->model('NES::ReleaseGroup')->load_relationships($rg);
+
+        $c->stash(
+            template => 'release_group/index.tt',
+            releases => group_by_release_status(@$releases),
+        );
     });
-
-    $c->model('Medium')->load_for_releases(@$releases);
-    $c->model('MediumFormat')->load(map { $_->all_mediums } @$releases);
-    $c->model('Country')->load(@$releases);
-    $c->model('ReleaseLabel')->load(@$releases);
-    $c->model('Label')->load(map { $_->all_labels } @$releases);
-    $c->model('ReleaseStatus')->load(@$releases);
-    $c->model('Relationship')->load($rg);
-
-    $c->stash(
-        template => 'release_group/index.tt',
-        releases => group_by_release_status(@$releases),
-    );
 }
 
-with 'MusicBrainz::Server::Controller::Role::Delete' => {
-    edit_type      => $EDIT_RELEASEGROUP_DELETE,
-};
+# with 'MusicBrainz::Server::Controller::Role::Delete' => {
+#     edit_type      => $EDIT_RELEASEGROUP_DELETE,
+# };
 
 # with 'MusicBrainz::Server::Controller::Role::Create' => {
 #     path           => '/release-group/create',
