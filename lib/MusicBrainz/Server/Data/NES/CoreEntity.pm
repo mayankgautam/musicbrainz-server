@@ -42,18 +42,17 @@ sub get_revision {
 
 sub get_by_gid {
     my ($self, $gid) = @_;
-    return $self->_new_from_core_entity(
-        $self->scoped_request('/find-latest', { mbid => $gid }))
+    $self->get_by_gids($gid)->{$gid};
 }
 
 sub get_by_gids {
     my ($self, @gids) = @_;
-    return {
-        map {
-            my $e = $self->get_by_gid($_);
-            $e->gid => $e
-        } @gids
-    };
+    my %result = %{ $self->scoped_request('/find-latest', \@gids) };
+    for my $gid (keys %result) {
+        $result{$gid} = $self->_new_from_core_entity($result{$gid});
+    }
+
+    return \%result;
 }
 
 sub _new_from_core_entity {
