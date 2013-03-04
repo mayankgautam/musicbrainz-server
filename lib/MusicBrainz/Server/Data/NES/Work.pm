@@ -151,6 +151,13 @@ sub load_iswcs {
     return;
 }
 
+sub find_by_iswc {
+    my ($self, $iswc) = @_;
+    return [
+        map { $self->map_core_entity($_) }
+            @{ $self->scoped_request('/find-by-iswc', { iswc => $iswc }) }
+    ];
+}
 
 __PACKAGE__->meta->make_immutable;
 1;

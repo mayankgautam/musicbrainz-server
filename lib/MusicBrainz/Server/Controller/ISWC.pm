@@ -1,46 +1,40 @@
 package MusicBrainz::Server::Controller::ISWC;
 use Moose;
 
-use MusicBrainz::Server::Constants qw( $EDIT_WORK_REMOVE_ISWC );
 use MusicBrainz::Server::Validation qw( format_iswc is_valid_iswc );
-use List::UtilsBy qw( sort_by );
 
 BEGIN { extends 'MusicBrainz::Server::Controller'; }
 
-with 'MusicBrainz::Server::Controller::Role::Load' => {
-    model => 'ISWC',
-};
-
 sub base : Chained('/') PathPart('iswc') CaptureArgs(0) { }
 
-sub _load : Chained('/') PathPart('iswc') CaptureArgs(1)
-{
+sub load : Chained('base') PathPart('') CaptureArgs(1) {
     my ($self, $c, $iswc) = @_;
+
     $iswc = format_iswc($iswc);
-    return unless (is_valid_iswc($iswc));
-
-    my @iswcs = $c->model('ISWC')->find_by_iswc($iswc)
-        or return;
-
-    $c->stash(
-        iswcs => \@iswcs,
-        iswc => $iswc,
-    );
+    if (!is_valid_iswc($iswc)) {
+        $self->not_found;
+    }
+    else {
+        $c->stash(iswc => $iswc);
+    }
 }
 
 sub show : Chained('load') PathPart('')
 {
     my ($self, $c) = @_;
 
-    my $iswcs = $c->stash->{iswcs};
-    my @works = sort_by { $_->name } $c->model('Work')->load(@$iswcs);
-    $c->model('WorkType')->load(@works);
-    $c->model('Work')->load_writers(@works);
-    $c->model('Work')->load_recording_artists(@works);
-    $c->stash(
-        works => \@works,
-        template => 'iswc/index.tt',
-    );
+    my $iswc = $c->stash->{iswc};
+    $c->model('MB')->with_nes_transaction(sub {
+        my @works = @{ $c->model('NES::Work')->find_by_iswc($iswc) };
+        $c->model('WorkType')->load(@works);
+        # NES
+        # $c->model('Work')->load_writers(@works);
+        # $c->model('Work')->load_recording_artists(@works);
+        $c->stash(
+            works => \@works,
+            template => 'iswc/index.tt',
+        );
+    });
 }
 
 1;
