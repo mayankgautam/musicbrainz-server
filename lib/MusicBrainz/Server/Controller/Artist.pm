@@ -302,57 +302,63 @@ sub releases : Chained('load')
     my $artist = $c->stash->{artist};
     my $releases;
 
-    if ($artist->id == $VARTIST_GID)
-    {
-        my $index = $c->req->query_params->{index};
-        if ($index) {
+    $c->model('MB')->with_nes_transaction(sub {
+        # NES
+        # if ($artist->id == $VARTIST_GID)
+        # {
+        # my $index = $c->req->query_params->{index};
+        # if ($index) {
+        #     $releases = $self->_load_paged($c, sub {
+        #         $c->model('Release')->find_by_name_prefix_va($index, shift,
+        #                                                           shift);
+        #     });
+        # }
+        # $c->stash(
+        #     template => 'artist/browse_various_releases.tt',
+        #     index    => $index,
+        # );
+        # }
+        # else
+        {
+            my %filter = %{ $self->process_filter($c, sub {
+                return create_artist_releases_form($c, $artist->id);
+            }) };
+
+            my $method = 'find_by_artist';
+            my $show_va = $c->req->query_params->{va};
+            # NES
+            # if ($show_va) {
+            #     $method = 'find_by_track_artist';
+            #     $c->stash( show_va => 1 );
+            # }
+
             $releases = $self->_load_paged($c, sub {
-                $c->model('Release')->find_by_name_prefix_va($index, shift,
-                                                                  shift);
-            });
-        }
-        $c->stash(
-            template => 'artist/browse_various_releases.tt',
-            index    => $index,
-        );
-    }
-    else
-    {
-        my %filter = %{ $self->process_filter($c, sub {
-            return create_artist_releases_form($c, $artist->id);
-        }) };
-
-        my $method = 'find_by_artist';
-        my $show_va = $c->req->query_params->{va};
-        if ($show_va) {
-            $method = 'find_by_track_artist';
-            $c->stash( show_va => 1 );
-        }
-
-        $releases = $self->_load_paged($c, sub {
-                $c->model('Release')->$method($artist->id, shift, shift, filter => \%filter);
+                $c->model('NES::Release')->$method($artist, shift, shift, filter => \%filter);
             });
 
-        my $pager = $c->stash->{pager};
-        if (!$show_va && $pager->total_entries == 0) {
-            $releases = $self->_load_paged($c, sub {
-                    $c->model('Release')->find_by_track_artist($c->stash->{artist}->id, shift, shift, filter => \%filter);
-                });
-            $c->stash(
-                va_only => 1,
-                show_va => 1
-            );
+            my $pager = $c->stash->{pager};
+            # NES
+            # if (!$show_va && $pager->total_entries == 0) {
+            #     $releases = $self->_load_paged($c, sub {
+            #             $c->model('Release')->find_by_track_artist($c->stash->{artist}->id, shift, shift, filter => \%filter);
+            #         });
+            #     $c->stash(
+            #         va_only => 1,
+            #         show_va => 1
+            #     );
+            # }
+
+            $c->stash( template => 'artist/releases.tt' );
         }
 
-        $c->stash( template => 'artist/releases.tt' );
-    }
+        $c->model('ArtistCredit')->load(@$releases);
+        $c->model('Medium')->load_for_releases(@$releases);
+        $c->model('MediumFormat')->load(map { $_->all_mediums } @$releases);
+        $c->model('Country')->load(@$releases);
+        $c->model('ReleaseLabel')->load(@$releases);
+        $c->model('NES::Label')->load(map { $_->all_labels } @$releases);
+    });
 
-    $c->model('ArtistCredit')->load(@$releases);
-    $c->model('Medium')->load_for_releases(@$releases);
-    $c->model('MediumFormat')->load(map { $_->all_mediums } @$releases);
-    $c->model('Country')->load(@$releases);
-    $c->model('ReleaseLabel')->load(@$releases);
-    $c->model('Label')->load(map { $_->all_labels } @$releases);
     $c->stash(
         releases => $releases,
         show_artists => scalar grep {
