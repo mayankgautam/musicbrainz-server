@@ -100,5 +100,13 @@ sub find_tracks {
     ];
 }
 
+sub find_by_isrc {
+    my ($self, $isrc, undef, undef) = @_;
+    return [
+        map { $self->map_core_entity($_) }
+            @{ $self->scoped_request('/find-by-isrc', { isrc => $isrc }) }
+    ];
+}
+
 __PACKAGE__->meta->make_immutable;
 1;
