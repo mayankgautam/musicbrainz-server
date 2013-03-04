@@ -238,48 +238,49 @@ sub recordings : Chained('load')
     my $artist = $c->stash->{artist};
     my $recordings;
 
-    if ($artist->id == $VARTIST_GID)
-    {
-        my $index = $c->req->query_params->{index};
-        if ($index) {
-            $recordings = $self->_load_paged($c, sub {
-                $c->model('Recording')->find_by_name_prefix_va($index, shift, shift);
-            });
-        }
-        $c->stash(
-            template => 'artist/browse_various_recordings.tt',
-            index    => $index,
-        );
-    }
-    else
-    {
-        my %filter = %{ $self->process_filter($c, sub {
-            return create_artist_recordings_form($c, $artist->id);
-        }) };
+    $c->model('MB')->with_nes_transaction(sub {
+        # NES
+        # if ($artist->id == $VARTIST_GID) {
+        #     my $index = $c->req->query_params->{index};
+        #     if ($index) {
+        #         $recordings = $self->_load_paged($c, sub {
+        #             $c->model('Recording')->find_by_name_prefix_va($index, shift, shift);
+        #         });
+        #     }
+        #     $c->stash(
+        #         template => 'artist/browse_various_recordings.tt',
+        #         index    => $index,
+        #     );
+        # }
+        # else {
+            my %filter = %{ $self->process_filter($c, sub {
+                return create_artist_recordings_form($c, $artist->id);
+            }) };
 
-        if ($c->req->query_params->{standalone}) {
-            $recordings = $self->_load_paged($c, sub {
-                $c->model('Recording')->find_standalone($artist->id, shift, shift);
-            });
-            $c->stash( standalone_only => 1 );
-        }
-        else {
-            $recordings = $self->_load_paged($c, sub {
-                $c->model('Recording')->find_by_artist($artist->id, shift, shift, filter => \%filter);
-            });
-        }
+            # if ($c->req->query_params->{standalone}) {
+            #     $recordings = $self->_load_paged($c, sub {
+            #         $c->model('Recording')->find_standalone($artist->id, shift, shift);
+            #     });
+            #     $c->stash( standalone_only => 1 );
+            # }
+            # else {
+                $recordings = $self->_load_paged($c, sub {
+                    $c->model('NES::Recording')->find_by_artist($artist, shift, shift, filter => \%filter);
+                });
+            # }
 
-        $c->model('Recording')->load_meta(@$recordings);
+            # NES
+            # $c->model('Recording')->load_meta(@$recordings);
+            # if ($c->user_exists) {
+            #     $c->model('Recording')->rating->load_user_ratings($c->user->id, @$recordings);
+            # }
 
-        if ($c->user_exists) {
-            $c->model('Recording')->rating->load_user_ratings($c->user->id, @$recordings);
-        }
+            $c->stash( template => 'artist/recordings.tt' );
+        # }
 
-        $c->stash( template => 'artist/recordings.tt' );
-    }
-
-    $c->model('ISRC')->load_for_recordings(@$recordings);
-    $c->model('ArtistCredit')->load(@$recordings);
+        # $c->model('ISRC')->load_for_recordings(@$recordings);
+        $c->model('ArtistCredit')->load(@$recordings);
+    });
 
     $c->stash(
         recordings => $recordings,

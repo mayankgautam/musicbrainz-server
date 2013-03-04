@@ -17,6 +17,8 @@ with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
     model => 'Recording'
 };
 
+with 'MusicBrainz::Server::Data::NES::Role::FindByArtist';
+
 around create => sub {
     my ($orig, $self, $edit, $editor, $tree) = @_;
 

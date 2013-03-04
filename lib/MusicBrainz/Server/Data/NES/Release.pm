@@ -18,6 +18,8 @@ with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
     model => 'Release'
 };
 
+with 'MusicBrainz::Server::Data::NES::Role::FindByArtist';
+
 sub tree_class { 'MusicBrainz::Server::Entity::Tree::Release' }
 
 around create => sub {
@@ -119,14 +121,6 @@ sub find_by_release_group {
     return [
         map { $self->map_core_entity($_) }
             @{ $self->scoped_request('/find-by-release-group', { 'release-group' => $release_group->gid }) }
-    ];
-}
-
-sub find_by_artist {
-    my ($self, $artist, undef, undef) = @_;
-    return [
-        map { $self->map_core_entity($_) }
-            @{ $self->scoped_request('/find-by-artist', { 'artist' => $artist->gid }) }
     ];
 }
 
