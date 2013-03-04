@@ -19,6 +19,7 @@ with 'MusicBrainz::Server::Data::NES::Role::Relationship';
 with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
     model => 'Work'
 };
+with 'MusicBrainz::Server::Data::NES::Role::FindByArtist';
 
 sub tree_class { 'MusicBrainz::Server::Entity::Tree::Work' }
 
