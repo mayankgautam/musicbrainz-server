@@ -117,9 +117,12 @@ after 'aliases' => sub
 {
     my ($self, $c) = @_;
 
-    my $artist = $c->stash->{artist};
-    my $artist_credits = $c->model('ArtistCredit')->find_by_artist_id($artist->id);
-    $c->stash( artist_credits => $artist_credits );
+    $c->model('MB')->with_nes_transaction(sub {
+        my $artist = $c->stash->{artist};
+        $c->stash(
+            artist_credits => $c->model('ArtistCredit')->find_by_artist_id($artist)
+        );
+    });
 };
 
 =head2 show

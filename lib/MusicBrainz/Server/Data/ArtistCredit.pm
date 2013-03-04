@@ -13,6 +13,26 @@ extends 'MusicBrainz::Server::Data::Entity';
 with 'MusicBrainz::Server::Data::Role::EntityCache' => { prefix => 'ac' };
 with 'MusicBrainz::Server::Data::Role::NES' => { root => '/' };
 
+sub artist_credit_from_json {
+    my $json = shift;
+    my @names = @$json;
+    MusicBrainz::Server::Entity::ArtistCredit->new(
+        artist_count => scalar(@names),
+        names => [
+            map {
+                MusicBrainz::Server::Entity::ArtistCreditName->new(
+                    name => $_->{name},
+                    artist_gid => $_->{artist},
+                    join_phrase => $_->{'join-phrase'},
+                    artist => MusicBrainz::Server::Entity::Artist->new(
+                        gid => $_->{artist}
+                        )
+                )
+              } @names
+        ]
+    );
+}
+
 sub get_by_ids
 {
     my ($self, @ids) = @_;
@@ -20,22 +40,7 @@ sub get_by_ids
 
     my %result;
     for my $ac_id (keys %mapping) {
-        my @names = @{ $mapping{$ac_id} };
-        $result{$ac_id} = MusicBrainz::Server::Entity::ArtistCredit->new(
-            artist_count => scalar(@names),
-            names => [
-                map {
-                    MusicBrainz::Server::Entity::ArtistCreditName->new(
-                        name => $_->{name},
-                        artist_gid => $_->{artist},
-                        join_phrase => $_->{'join-phrase'},
-                        artist => MusicBrainz::Server::Entity::Artist->new(
-                            gid => $_->{artist}
-                        )
-                    )
-                } @names
-            ]
-        );
+        $result{$ac_id} = artist_credit_from_json($mapping{$ac_id});
     }
 
     return \%result;
@@ -58,11 +63,12 @@ sub find_by_ids
 
 sub find_by_artist_id
 {
-    my ($self, $artist_id) = @_;
-
-    my $query = 'SELECT artist_credit FROM artist_credit_name WHERE artist = ?';
-    my $ids = $self->sql->select_single_column_array($query, $artist_id);
-    return $self->find_by_ids($ids);
+    my ($self, $artist) = @_;
+    return [
+        map { artist_credit_from_json($_) }
+            @{ $self->request('/artist-credit/all-artist-credits',
+                              { artist => $artist->gid }) }
+    ];
 }
 
 sub _find
