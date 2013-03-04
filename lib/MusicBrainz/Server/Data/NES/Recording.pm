@@ -11,6 +11,11 @@ with 'MusicBrainz::Server::Data::Role::NES' => {
     root => '/recording'
 };
 with 'MusicBrainz::Server::Data::NES::CoreEntity';
+with 'MusicBrainz::Server::Data::NES::Role::Annotation';
+with 'MusicBrainz::Server::Data::NES::Role::Relationship';
+with 'MusicBrainz::Server::Data::NES::Role::Tags' => {
+    model => 'Recording'
+};
 
 around create => sub {
     my ($orig, $self, $edit, $editor, $tree) = @_;
@@ -29,7 +34,7 @@ sub map_core_entity {
         name => $data{name},
         comment => $data{comment},
         artist_credit_id => $data{'artist-credit'},
-        length => $data{length},
+        length => $data{duration},
 
         gid => $response->{mbid},
         revision_id => $response->{revision}
@@ -65,6 +70,21 @@ sub view_tree {
 sub load {
     my $self = shift;
     load_subobjects_gid($self, 'recording', @_);
+}
+
+sub find_tracks {
+    my ($self, $recording) = @_;
+    return [
+        map +{
+            track => track_from_json($_->{track}),
+            release => $self->c->model('NES::Release')->map_core_entity($_->{release}),
+            total_tracks => $_->{'total-tracks'}
+        },
+          @{
+            $self->scoped_request('/find-recording-tracks',
+                                  { recording => $recording->gid })
+          }
+    ];
 }
 
 __PACKAGE__->meta->make_immutable;

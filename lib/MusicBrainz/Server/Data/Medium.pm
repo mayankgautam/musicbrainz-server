@@ -14,6 +14,7 @@ use MusicBrainz::Server::Data::Utils qw(
     query_to_list
     query_to_list_limited
 );
+use MusicBrainz::Server::Data::NES::TreeMapping qw( track_from_json );
 
 extends 'MusicBrainz::Server::Data::Entity';
 with 'MusicBrainz::Server::Data::Role::NES' => { root => '/' };
@@ -53,15 +54,8 @@ sub load_for_releases
                         position => $_->{position},
                         tracklist => MusicBrainz::Server::Entity::Tracklist->new(
                             tracks => [
-                                map {
-                                    MusicBrainz::Server::Entity::Track->new(
-                                        name => $_->{name},
-                                        number => $_->{number},
-                                        length => $_->{length},
-                                        artist_credit_id => $_->{'artist-credit'},
-                                        recording_gid => $_->{recording}
-                                    )
-                                } @{ $_->{tracks} }
+                                map { track_from_json($_) }
+                                  @{ $_->{tracks} }
                             ]
                         )
                     )

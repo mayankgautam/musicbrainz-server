@@ -5,7 +5,7 @@ BEGIN { extends 'MusicBrainz::Server::Controller'; }
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     entity_name => 'recording',
-    model       => 'Recording',
+    model       => 'NES::Recording',
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
 with 'MusicBrainz::Server::Controller::Role::Annotation';
@@ -59,13 +59,17 @@ after 'load' => sub
     my ($self, $c) = @_;
 
     my $recording = $c->stash->{recording};
-    $c->model('Recording')->load_meta($recording);
-    if ($c->user_exists) {
-        $c->model('Recording')->rating->load_user_ratings($c->user->id, $recording);
-    }
-    my @isrcs = $c->model('ISRC')->find_by_recording($recording->id);
-    $c->stash( isrcs => \@isrcs );
-    $c->model('ArtistCredit')->load($recording);
+    $c->model('MB')->with_nes_transaction(sub {
+        $c->model('ArtistCredit')->load($recording);
+    });
+
+    # NES
+    # $c->model('Recording')->load_meta($recording);
+    # if ($c->user_exists) {
+    #     $c->model('Recording')->rating->load_user_ratings($c->user->id, $recording);
+    # }
+    # my @isrcs = $c->model('ISRC')->find_by_recording($recording->id);
+    # $c->stash( isrcs => \@isrcs );
 };
 
 sub _row_id_to_gid
@@ -106,25 +110,28 @@ sub show : Chained('load') PathPart('')
 {
     my ($self, $c) = @_;
     my $recording = $c->stash->{recording};
-    my $tracks = $self->_load_paged($c, sub {
-        $c->model('Track')->find_by_recording($recording->id, shift, shift);
+    $c->model('MB')->with_nes_transaction(sub {
+        my $tracks = $self->_load_paged($c, sub {
+            $c->model('NES::Recording')->find_tracks($recording, shift, shift);
+        });
+
+        my @tracks = map { $_->{track} } @$tracks;
+        my @releases = map { $_->{release} } @$tracks;
+        $c->model('ArtistCredit')->load($recording, @tracks, @releases);
+        $c->model('Country')->load(@releases);
+        $c->model('ReleaseLabel')->load(@releases);
+        $c->model('NES::Label')->load(map { $_->all_labels } @releases);
+        $c->model('ReleaseStatus')->load(@releases);
+
+        # $self->relationships($c); NES
+        $c->stash(
+            usages =>
+                group_by_release_status_nested(
+                    sub { shift->{release} },
+                    @$tracks),
+            template => 'recording/index.tt',
+        );
     });
-
-    my @releases = map { $_->tracklist->medium->release } @$tracks;
-    $c->model('ArtistCredit')->load($recording, @$tracks, @releases);
-    $c->model('Country')->load(@releases);
-    $c->model('ReleaseLabel')->load(@releases);
-    $c->model('Label')->load(map { $_->all_labels } @releases);
-    $c->model('ReleaseStatus')->load(@releases);
-
-    $self->relationships($c);
-    $c->stash(
-        tracks =>
-            group_by_release_status_nested(
-                sub { shift->tracklist->medium->release },
-                @$tracks),
-        template => 'recording/index.tt',
-    );
 }
 
 sub fingerprints : Chained('load') PathPart('fingerprints')
@@ -283,9 +290,11 @@ sub delete_puid : Chained('load') PathPart('remove-puid') RequireAuth
     }
 }
 
-with 'MusicBrainz::Server::Controller::Role::Delete' => {
-    edit_type => $EDIT_RECORDING_DELETE,
-};
+# NES
+# with 'MusicBrainz::Server::Controller::Role::Delete' => {
+#     edit_type => $EDIT_RECORDING_DELETE,
+# };
+sub delete : Chained('load') { }
 
 =head1 LICENSE
 

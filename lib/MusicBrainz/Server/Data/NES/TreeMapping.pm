@@ -11,6 +11,7 @@ use Sub::Exporter -setup => {
         annotation_to_json
         artist_credit_to_json
         relationships_to_json
+        track_from_json
     )]
 };
 
@@ -65,6 +66,17 @@ sub artist_credit_to_json {
             }, $artist_credit->all_names
         ]
     );
+}
+
+sub track_from_json {
+    my ($json) = @_;
+    return MusicBrainz::Server::Entity::Track->new(
+        name => $json->{name},
+        number => $json->{number},
+        length => $json->{length},
+        artist_credit_id => $json->{'artist-credit'},
+        recording_gid => $json->{recording}
+    )
 }
 
 1;
