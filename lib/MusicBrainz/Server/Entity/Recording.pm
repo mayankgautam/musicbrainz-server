@@ -44,12 +44,12 @@ has 'comment' => (
 
 has 'isrcs' => (
     isa     => 'ArrayRef',
-    is      => 'ro',
+    is      => 'rw',
     traits  => [ 'Array' ],
     default => sub { [] },
     handles => {
         add_isrc => 'push',
-        all_isrcs => 'elements'
+        all_isrcs => 'elements',
     }
 );
 

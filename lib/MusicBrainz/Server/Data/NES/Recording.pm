@@ -108,5 +108,14 @@ sub find_by_isrc {
     ];
 }
 
+sub load_isrcs {
+    my ($self, @revisions) = @_;
+
+    # NES - Convert from O(n) to O(1) queries
+    for my $revision (@revisions) {
+        $revision->isrcs($self->view_isrcs($revision));
+    }
+}
+
 __PACKAGE__->meta->make_immutable;
 1;

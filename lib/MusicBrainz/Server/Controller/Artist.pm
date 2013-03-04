@@ -282,7 +282,7 @@ sub recordings : Chained('load')
             $c->stash( template => 'artist/recordings.tt' );
         # }
 
-        # $c->model('ISRC')->load_for_recordings(@$recordings);
+        $c->model('NES::Recording')->load_isrcs(@$recordings);
         $c->model('ArtistCredit')->load(@$recordings);
     });
 
