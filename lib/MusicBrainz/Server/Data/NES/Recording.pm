@@ -69,6 +69,17 @@ sub view_tree {
     );
 }
 
+sub view_isrcs {
+    my ($self, $revision) = @_;
+
+    return [
+        map { MusicBrainz::Server::Entity::ISRC->new( isrc => $_ ) }
+            @{ $self->scoped_request('/view-isrcs',
+                                     { revision => $revision->revision_id })
+            }
+    ];
+}
+
 sub load {
     my $self = shift;
     load_subobjects_gid($self, 'recording', @_);

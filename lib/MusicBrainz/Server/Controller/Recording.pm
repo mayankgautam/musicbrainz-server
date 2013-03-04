@@ -61,6 +61,9 @@ after 'load' => sub
     my $recording = $c->stash->{recording};
     $c->model('MB')->with_nes_transaction(sub {
         $c->model('ArtistCredit')->load($recording);
+        $c->stash(
+            isrcs => $c->model('NES::Recording')->view_isrcs($recording)
+        );
     });
 
     # NES
@@ -68,8 +71,6 @@ after 'load' => sub
     # if ($c->user_exists) {
     #     $c->model('Recording')->rating->load_user_ratings($c->user->id, $recording);
     # }
-    # my @isrcs = $c->model('ISRC')->find_by_recording($recording->id);
-    # $c->stash( isrcs => \@isrcs );
 };
 
 sub _row_id_to_gid
