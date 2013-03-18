@@ -2,6 +2,7 @@ package MusicBrainz::Server::Entity::Editor;
 use Moose;
 use namespace::autoclean;
 
+use Authen::Passphrase;
 use DateTime;
 use MusicBrainz::Server::Entity::Preferences;
 use MusicBrainz::Server::Constants qw( :privileges $EDITOR_MODBOT);
@@ -190,6 +191,16 @@ has languages => (
         add_language => 'push',
     }
 );
+
+has ha1 => (
+    isa => 'Str',
+    is => 'rw',
+);
+
+sub match_password {
+    my ($self, $password) = @_;
+    Authen::Passphrase->from_rfc2307($self->password)->match($password);
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;

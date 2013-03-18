@@ -555,8 +555,9 @@ if (grep { $_ eq "editor_sanitised" } @tables)
 {
     $sql->do("SELECT * INTO TEMPORARY TABLE editor_sanitised FROM editor");
     $sql->do("UPDATE editor_sanitised
-              SET password = 'mb', privs = 0, email = '', gender = NULL,
-                birth_date = NULL, country = NULL, website = NULL, bio = NULL");
+              SET password = '{CLEARTEXT}mb', privs = 0, email = '', gender = NULL,
+                birth_date = NULL, country = NULL, website = NULL, bio = NULL,
+                ha1 = md5(name || ':musicbrainz.org:mb')");
 }
 
 $| = 1;

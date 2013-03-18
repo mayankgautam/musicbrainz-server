@@ -33,7 +33,7 @@ sub validate_old_password
     my $password = $field->value;
     if ($password) {
         my $editor = $self->ctx->model('Editor')->get_by_id($self->ctx->user->id);
-        if ($editor->password ne $password) {
+        if (!$editor->match_password($password)) {
             $field->add_error(l('The old password is incorrect'));
         }
     }
